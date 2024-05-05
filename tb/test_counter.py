@@ -4,7 +4,7 @@ from cocotb.triggers import RisingEdge, FallingEdge, Timer
 import random
 
 @cocotb.test()
-async def reg_file_test(dut):
+async def counter_test(dut):
     clock = Clock(dut.CLK, 10, units="ns")  # Create a 10ns clock period
     cocotb.start_soon(clock.start())  # Start the clock
     dut.rst.value = 0

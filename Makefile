@@ -17,6 +17,7 @@ else ifeq ($(TOPLEVEL),counter)
 else ifeq ($(TOPLEVEL),fsm)
     VERILOG_SOURCES = $(shell pwd)/hdl/fsm.v
     VERILOG_SOURCES += $(shell pwd)/hdl/counter.v
+    # VERILOG_SOURCES += $(shell pwd)/hdl/counter_2d.v
     MODULE = tb.test_fsm
 else ifeq ($(TOPLEVEL),mac)
     VERILOG_SOURCES = $(shell pwd)/hdl/mac.v
