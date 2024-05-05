@@ -40,18 +40,20 @@ end
 // next state logic
 always @(*) begin
     case(state)
-        WAIT: if (start)                               nextstate = BUSY;
-              else                                     nextstate = WAIT;
-        BUSY: if (addr_c == MATRIX_DIM**2-1)           nextstate = DONE;
-              else                                     nextstate = BUSY;
+        WAIT: if (start)                                  nextstate = BUSY;
+              else                                        nextstate = WAIT;
+        BUSY: if (addr_c == MATRIX_DIM**2-1
+                && addr_a == MATRIX_DIM**2-1
+                && addr_b == MATRIX_DIM**2-1) nextstate = DONE;
+                else                                      nextstate = BUSY;
         // BUSY: if (count ==
         //         COUNT_FSM_MAX[$clog2(MATRIX_DIM)-1:0]) nextstate = NEXT;
         //       else                                     nextstate = BUSY;
         // NEXT: if (addr_c == MATRIX_DIM**2-1)           nextstate = DONE;
         //       else                                     nextstate = BUSY;
-        DONE: if (start)                               nextstate = BUSY;
-              else                                     nextstate = DONE;
-        default:                                       nextstate = WAIT;
+        DONE: if (start)                                  nextstate = BUSY;
+              else                                        nextstate = DONE;
+        default:                                          nextstate = WAIT;
     endcase
 end
 
@@ -72,12 +74,6 @@ always @(*) begin
         end else begin
             count_c_en = 1'b0;
         end
-    // end else if (state == NEXT) begin
-    //     count_en = 1'b1;
-    //     count_c_en = 1'b1;
-    //     count_rst = 1'b0;
-    //     mac_enable = 1'b0;
-    //     we_c = 1'b1;
     end else if (state == DONE) begin
         count_en = 1'b0;
         count_c_en = 1'b0;
