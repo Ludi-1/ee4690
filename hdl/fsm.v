@@ -11,17 +11,17 @@ module fsm #(
     output [ADDR_WIDTH-1:0] addr_b,
     output reg mac_enable,
     output reg [ADDR_WIDTH-1:0] addr_c,
-    output reg we_c
+    output reg we_c,
+    output reg state
 );
 
-localparam WAIT = 2'd0; // reset state
-localparam BUSY = 2'd1; // accumulation
-localparam DONE = 2'd3; // MMM done
+localparam WAIT = 1'b0; // reset state
+localparam BUSY = 1'b1; // accumulation
 
 localparam COUNT_WIDTH = $clog2(MATRIX_DIM);
 localparam COUNT_FSM_MAX = MATRIX_DIM-1;
 
-reg [1:0] state, nextstate;
+reg nextstate;
 reg count_enable;
 reg count_en, count_c_en;
 reg [COUNT_WIDTH-1:0] count;
@@ -44,15 +44,8 @@ always @(*) begin
               else                                        nextstate = WAIT;
         BUSY: if (addr_c == MATRIX_DIM**2-1
                 && addr_a == MATRIX_DIM**2-1
-                && addr_b == MATRIX_DIM**2-1) nextstate = DONE;
+                && addr_b == MATRIX_DIM**2-1) nextstate = WAIT;
                 else                                      nextstate = BUSY;
-        // BUSY: if (count ==
-        //         COUNT_FSM_MAX[$clog2(MATRIX_DIM)-1:0]) nextstate = NEXT;
-        //       else                                     nextstate = BUSY;
-        // NEXT: if (addr_c == MATRIX_DIM**2-1)           nextstate = DONE;
-        //       else                                     nextstate = BUSY;
-        DONE: if (start)                                  nextstate = BUSY;
-              else                                        nextstate = DONE;
         default:                                          nextstate = WAIT;
     endcase
 end
@@ -74,11 +67,6 @@ always @(*) begin
         end else begin
             count_c_en = 1'b0;
         end
-    end else if (state == DONE) begin
-        count_en = 1'b0;
-        count_c_en = 1'b0;
-        mac_enable = 1'b0;
-        we_c = 1'b0;
     end else begin
         count_en = 1'b0;
         count_c_en = 1'b0;

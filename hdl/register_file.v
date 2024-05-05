@@ -2,7 +2,6 @@ module register_file #(
     parameter DATATYPE_SIZE = 8,
     parameter ADDR_WIDTH = 6
 )
-
 (
     input CLK,
 

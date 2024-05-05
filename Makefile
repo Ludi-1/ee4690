@@ -22,6 +22,13 @@ else ifeq ($(TOPLEVEL),fsm)
 else ifeq ($(TOPLEVEL),mac)
     VERILOG_SOURCES = $(shell pwd)/hdl/mac.v
     MODULE = tb.test_mac
+else ifeq ($(TOPLEVEL),top)
+    VERILOG_SOURCES = $(shell pwd)/hdl/top.v
+    VERILOG_SOURCES += $(shell pwd)/hdl/fsm.v
+    VERILOG_SOURCES += $(shell pwd)/hdl/counter.v
+    VERILOG_SOURCES += $(shell pwd)/hdl/register_file.v
+    VERILOG_SOURCES += $(shell pwd)/hdl/mac.v
+    MODULE = tb.test_top
 else
     $(error Given TOPLEVEL '$(TOPLEVEL)' not supported)
 endif

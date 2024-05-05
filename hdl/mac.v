@@ -7,6 +7,7 @@ module mac #(
     input CLK,
     input rst,
     input enable,
+    input set_sum,
 
     input [IN_WIDTH-1:0] in_1,
     input [IN_WIDTH-1:0] in_2,
@@ -24,7 +25,11 @@ always @(posedge CLK, posedge rst) begin
     if (rst) begin 
         out <= '0;
     end else if (enable) begin
-        out <= sum;
+        if (set_sum) begin
+            out <= product;
+        end else begin
+            out <= sum;
+        end
     end
 end
 
