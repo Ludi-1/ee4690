@@ -7,4 +7,18 @@ import random
 async def mac_test(dut):
     clock = Clock(dut.CLK, 10, units="ns")  # Create a 10ns clock period
     cocotb.start_soon(clock.start())  # Start the clock
-    
+    dut.rst.value = 1
+    dut.enable.value = 0
+    await RisingEdge(dut.CLK)
+    dut.rst.value = 0
+    await RisingEdge(dut.CLK)
+    dut.enable.value = 1
+    data = []
+    for i in range(10):
+        dut.in_1.value = i
+        dut.in_2.value = i
+        await RisingEdge(dut.CLK)
+        data.append(dut.out.value)
+    await RisingEdge(dut.CLK)
+    dut.enable.value = 0
+    print(data)
