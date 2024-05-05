@@ -11,9 +11,9 @@ $(shell rm -rf sim_build)
 ifeq ($(TOPLEVEL),register_file)
     VERILOG_SOURCES = $(shell pwd)/hdl/register_file.v
     MODULE = tb.test_register_file
-# else ifeq ($(TOPLEVEL),fc_ctrl)
-#     VERILOG_SOURCES = $(shell pwd)/hdl/fc_ctrl.sv
-#     MODULE = tb.test_ctrl
+else ifeq ($(TOPLEVEL),counter)
+    VERILOG_SOURCES = $(shell pwd)/hdl/counter.v
+    MODULE = tb.test_counter
 else
     $(error Given TOPLEVEL '$(TOPLEVEL)' not supported)
 endif

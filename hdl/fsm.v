@@ -39,17 +39,17 @@ always @(*) begin
     endcase
 end
 
-// output logic
-always @(*) begin
-    if (state == WAIT) begin
-        count_en = 1'b0;
-        mac_enable = 1'b0;
-    end else if (state == BUSY) begin
-        count_en = 1'b1;
-    end else begin
-        count = 1'b0;
-        mac_enable = 1'b0;
-    end
-end
+// // output logic
+// always @(*) begin
+//     if (state == WAIT) begin
+//         count_en = 1'b0;
+//         mac_enable = 1'b0;
+//     end else if (state == BUSY) begin
+//         count_en = 1'b1;
+//     end else begin
+//         count = 1'b0;
+//         mac_enable = 1'b0;
+//     end
+// end
 
 endmodule
