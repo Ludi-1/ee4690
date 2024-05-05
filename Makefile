@@ -14,6 +14,10 @@ ifeq ($(TOPLEVEL),register_file)
 else ifeq ($(TOPLEVEL),counter)
     VERILOG_SOURCES = $(shell pwd)/hdl/counter.v
     MODULE = tb.test_counter
+else ifeq ($(TOPLEVEL),fsm)
+    VERILOG_SOURCES = $(shell pwd)/hdl/fsm.v
+    VERILOG_SOURCES += $(shell pwd)/hdl/counter.v
+    MODULE = tb.test_fsm
 else ifeq ($(TOPLEVEL),mac)
     VERILOG_SOURCES = $(shell pwd)/hdl/mac.v
     MODULE = tb.test_mac
