@@ -12,24 +12,28 @@ module mac #(
     input [IN_WIDTH-1:0] in_1,
     input [IN_WIDTH-1:0] in_2,
 
-    output reg [OUT_WIDTH-1:0] out
+    output [OUT_WIDTH-1:0] out
 );
 
 wire [IN_WIDTH*2-1:0] product;
-wire [OUT_WIDTH-1:0] sum;
+reg [OUT_WIDTH-1:0] sum;
 
 assign product = in_1 * in_2;
-assign sum = out + {4'b0, product};
+assign out = set_sum ? {4'b0, product} : sum + {4'b0, product};
+
+// always @(*) begin
+//     if (set_sum) begin
+//         out = {4'b0, product};
+//     end else begin
+//         out = sum + {4'b0, product};
+//     end
+// end
 
 always @(posedge CLK, posedge rst) begin
     if (rst) begin 
-        out <= '0;
+        sum <= '0;
     end else if (enable) begin
-        if (set_sum) begin
-            out <= product;
-        end else begin
-            out <= sum;
-        end
+        sum <= out;
     end
 end
 

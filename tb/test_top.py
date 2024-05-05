@@ -29,5 +29,12 @@ async def fsm_test(dut):
     dut.start.value = 1
     await RisingEdge(dut.CLK)
     dut.start.value = 0
-    for i in range(10*64):
+    for i in range(8*64):
         await RisingEdge(dut.CLK)
+
+    await RisingEdge(dut.CLK)
+    dut.start.value = 0
+    for addr in range(64):
+        dut.addr_c_in.value = addr
+        await RisingEdge(dut.CLK)
+        print(f"addr {addr} - {hex(dut.data_c.value)}")

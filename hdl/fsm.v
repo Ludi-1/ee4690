@@ -30,6 +30,7 @@ reg [$clog2(MATRIX_DIM*(MATRIX_DIM-1))-1:0] count_addr_a2, count_addr_b1;
 
 assign addr_a = {3'b0, count_addr_a1} + count_addr_a2;
 assign addr_b = {3'b0, count_addr_b2} + count_addr_b1;
+assign we_c = count_c_en;
 
 // state
 always @(posedge CLK, posedge rst) begin
@@ -56,11 +57,9 @@ always @(*) begin
         count_en = 1'b0;
         count_c_en = 1'b0;
         mac_enable = 1'b0;
-        we_c = 1'b0;
     end else if (state == BUSY) begin
         count_en = 1'b1;
         mac_enable = 1'b1;
-        we_c = 1'b0;
         count_en = 1'b1;
         if (count == COUNT_FSM_MAX[$clog2(MATRIX_DIM)-1:0]) begin
             count_c_en = 1'b1;
@@ -71,7 +70,6 @@ always @(*) begin
         count_en = 1'b0;
         count_c_en = 1'b0;
         mac_enable = 1'b0;
-        we_c = 1'b0;
     end
 end
 
