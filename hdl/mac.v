@@ -31,7 +31,7 @@ assign out = set_sum ? {4'b0, product} : sum + {4'b0, product};
 
 always @(posedge CLK, posedge rst) begin
     if (rst) begin 
-        sum <= '0;
+        sum <= 'd0;
     end else if (enable) begin
         sum <= out;
     end

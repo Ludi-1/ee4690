@@ -11,7 +11,7 @@ module fsm #(
     output [ADDR_WIDTH-1:0] addr_b,
     output reg mac_enable,
     output reg [ADDR_WIDTH-1:0] addr_c,
-    output reg we_c,
+    output we_c,
     output reg state
 );
 
