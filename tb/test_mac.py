@@ -18,7 +18,10 @@ async def mac_test(dut):
         dut.in_1.value = i
         dut.in_2.value = i
         await RisingEdge(dut.CLK)
-        data.append(dut.out.value)
+        data.append(int(dut.out.value))
     await RisingEdge(dut.CLK)
     dut.enable.value = 0
-    print(data)
+    acc = 0
+    for i in range(10):
+        assert(data[i] == acc)
+        acc += i**2
