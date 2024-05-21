@@ -1,34 +1,21 @@
-SIM = verilator
+SIM = icarus
 PWD=$(shell pwd)
 TOPLEVEL_LANG = verilog
 WAVES=1
-EXTRA_ARGS += --trace-fst --trace-structs
-EXTRA_ARGS += --trace --trace-structs
+# Use for verilator
+# EXTRA_ARGS += --trace-fst --trace-structs
+# EXTRA_ARGS += --trace --trace-structs
 
-TOPLEVEL ?= register_file
+TOPLEVEL ?= popcount
 $(shell rm -rf sim_build)
 
-ifeq ($(TOPLEVEL),register_file)
-    VERILOG_SOURCES = $(shell pwd)/hdl/register_file.v
-    MODULE = tb.test_register_file
-else ifeq ($(TOPLEVEL),counter)
-    VERILOG_SOURCES = $(shell pwd)/hdl/counter.v
-    MODULE = tb.test_counter
-else ifeq ($(TOPLEVEL),fsm)
-    VERILOG_SOURCES = $(shell pwd)/hdl/fsm.v
-    VERILOG_SOURCES += $(shell pwd)/hdl/counter.v
-    # VERILOG_SOURCES += $(shell pwd)/hdl/counter_2d.v
-    MODULE = tb.test_fsm
-else ifeq ($(TOPLEVEL),mac)
-    VERILOG_SOURCES = $(shell pwd)/hdl/mac.v
-    MODULE = tb.test_mac
-else ifeq ($(TOPLEVEL),top)
-    VERILOG_SOURCES = $(shell pwd)/hdl/top.v
-    VERILOG_SOURCES += $(shell pwd)/hdl/fsm.v
-    VERILOG_SOURCES += $(shell pwd)/hdl/counter.v
-    VERILOG_SOURCES += $(shell pwd)/hdl/register_file.v
-    VERILOG_SOURCES += $(shell pwd)/hdl/mac.v
-    MODULE = tb.test_top
+ifeq ($(TOPLEVEL),popcount)
+    VERILOG_SOURCES = $(shell pwd)/hdl/popcount.v
+    MODULE = tb.test_popcount
+else ifeq ($(TOPLEVEL),activation)
+    VERILOG_SOURCES = $(shell pwd)/hdl/activation.v
+    VERILOG_SOURCES += $(shell pwd)/hdl/popcount.v
+    MODULE = tb.test_activation
 else
     $(error Given TOPLEVEL '$(TOPLEVEL)' not supported)
 endif
