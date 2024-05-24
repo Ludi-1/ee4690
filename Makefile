@@ -16,6 +16,11 @@ else ifeq ($(TOPLEVEL),activation)
     VERILOG_SOURCES = $(shell pwd)/hdl/activation.v
     VERILOG_SOURCES += $(shell pwd)/hdl/popcount.v
     MODULE = tb.test_activation
+else ifeq ($(TOPLEVEL),classifier)
+    VERILOG_SOURCES = $(shell pwd)/hdl/classifier.v
+    VERILOG_SOURCES += $(shell pwd)/hdl/no_activation.v
+    VERILOG_SOURCES += $(shell pwd)/hdl/popcount.v
+    MODULE = tb.test_classifier
 else
     $(error Given TOPLEVEL '$(TOPLEVEL)' not supported)
 endif
