@@ -21,6 +21,16 @@ else ifeq ($(TOPLEVEL),classifier)
     VERILOG_SOURCES += $(shell pwd)/hdl/no_activation.v
     VERILOG_SOURCES += $(shell pwd)/hdl/popcount.v
     MODULE = tb.test_classifier
+else ifeq ($(TOPLEVEL),ibuf_conv)
+    VERILOG_SOURCES = $(shell pwd)/hdl/ibuf_conv.v
+    MODULE = tb.test_ibuf_conv
+else ifeq ($(TOPLEVEL),ibuf_fc)
+    VERILOG_SOURCES = $(shell pwd)/ibuf_fc.v
+    MODULE = tb.test_ibuf_fc
+else ifeq ($(TOPLEVEL),top)
+    VERILOG_SOURCES = $(shell pwd)/hdl/ibuf_conv.v
+    VERILOG_SOURCES += $(shell pwd)/hdl/ibuf_fc.v
+    MODULE = tb.test_top
 else
     $(error Given TOPLEVEL '$(TOPLEVEL)' not supported)
 endif
