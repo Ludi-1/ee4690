@@ -40,7 +40,12 @@ if not os.path.exists("gen_hdl"):
     os.mkdir("gen_hdl")
 
 ### PARSE FC FUNC
-def parse_fc(fc_weights, num):
+def parse_fc(fc_weights, num: int, classifier: bool):
+    if classifier:
+        classifier = str(1)
+    else:
+        classifier = str(0)
+
     fc_weights[fc_weights == -1] = 0
     fc_weights = fc_weights.T
     xnor = ""
@@ -49,15 +54,16 @@ def parse_fc(fc_weights, num):
         for input_neuron in range(weight_dim[1]):
             weight = fc_weights[output_neuron][input_neuron]
             if weight == 0:
-                xnor += f"assign xnor_result[{input_neuron}][{output_neuron}] = ~i_data[{input_neuron}];\n"
+                xnor += f"assign xnor_result[{input_neuron}][{output_neuron}] = ~input_neuron[{input_neuron}];\n"
             elif weight == 1:
-                xnor += f"assign xnor_result[{input_neuron}][{output_neuron}] = i_data[{input_neuron}];\n"
+                xnor += f"assign xnor_result[{input_neuron}][{output_neuron}] = input_neuron[{input_neuron}];\n"
             else:
                 raise Exception(f"neuron value not 0 or 1: {input_neuron}")
 
     output_hdl = templates.FC_TEMPLATE \
         .replace("%XNOR_GEN%", xnor) \
-        .replace("%LAYER_NUM%", str(num))
+        .replace("%LAYER_NUM%", str(num)) \
+        .replace("%CLASSIFIER%", str(classifier))
     with open(f"gen_hdl/fc_layer_{num}.sv", "w") as f:
         f.write(output_hdl)
 
