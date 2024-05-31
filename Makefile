@@ -18,6 +18,9 @@ else ifeq ($(TOPLEVEL),top)
     VERILOG_SOURCES = $(shell pwd)/hdl/ibuf_conv.v
     VERILOG_SOURCES += $(shell pwd)/hdl/ibuf_fc.v
     MODULE = tb.test_top
+else ifeq ($(TOPLEVEL),layer_0_fc)
+    VERILOG_SOURCES = $(shell pwd)/gen_hdl/fc_layer_0.sv
+    MODULE = tb.test_fc_layer
 else
     $(error Given TOPLEVEL '$(TOPLEVEL)' not supported)
 endif

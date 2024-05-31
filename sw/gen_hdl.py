@@ -51,7 +51,9 @@ def parse_fc(fc_weights, num):
             else:
                 raise Exception(f"neuron value not 0 or 1: {input_neuron}")
 
-    output_hdl = templates.FC_TEMPLATE.replace("%XNOR_GEN%", xnor)
+    output_hdl = templates.FC_TEMPLATE \
+        .replace("%XNOR_GEN%", xnor) \
+        .replace("%LAYER_NUM%", str(num))
     with open(f"gen_hdl/fc_layer_{num}.sv", "w") as f:
         f.write(output_hdl)
 

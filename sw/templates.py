@@ -6,16 +6,10 @@ Templates for generating SV through Python
 # TODO: parameterize over datatype size
 FC_TEMPLATE = """module layer_%LAYER_NUM%_fc #(
     parameter INPUT_DIM = 784,
-    parameter OUTPUT_DIM = 10,
-    parameter INPUT_CHANNELS = 1
+    parameter OUTPUT_DIM = 10
 ) (
-    input clk,
-    input reset,
-
-    input i_we,
-    input i_data [INPUT_DIM-1:0][INPUT_CHANNELS-1:0],
-    output o_data [OUTPUT_DIM-1:0],
-    output o_we
+    input i_data [INPUT_DIM-1:0],
+    output o_data [OUTPUT_DIM-1:0]
 );
 
 wire xnor_result [INPUT_DIM-1:0][OUTPUT_DIM-1:0];
@@ -23,15 +17,15 @@ wire [$clog2(INPUT_DIM)-1:0] popcnt [OUTPUT_DIM-1:0];
 
 %XNOR_GEN%
 
-generate
-    for (genvar i = 0; i < OUTPUT_DIM; i++) begin
-        assign popcnt[i] = 0;
-        for (genvar j = 0; j < INPUT_DIM) begin
-            assign popcnt[i] += xnor_result[j][i];
+always_comb begin
+    for (int i = 0; i < OUTPUT_DIM; i++) begin
+         popcnt[i] = 0;
+        for (int j = 0; j < INPUT_DIM; j++) begin
+            popcnt[i] += xnor_result[j][i];
         end
-        assign o_data[i] = 2 * popcnt[i] - INPUT_DIM;
+        o_data[i] = 2 * popcnt[i] - INPUT_DIM;
     end
-endgenerate
+end
 
 endmodule"""
 
