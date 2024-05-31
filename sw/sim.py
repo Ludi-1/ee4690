@@ -8,10 +8,15 @@ Python simulation models for the layers
 import larq as lq
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import matplotlib
+
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 
-from sw.helper import retrieve_weights, setup_sim, plot_differences, check_result
+tf.keras.backend.set_floatx('float64')
+from sw.helper import retrieve_weights, setup_sim, plot_differences, check_result, plot_intermediate_results, get_output
 
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
 
@@ -25,39 +30,31 @@ train_images, test_images = train_images / 127.5 - 1, test_images / 127.5 - 1
 # NN Topology
 kwargs = dict(input_quantizer="ste_sign",
               kernel_quantizer="ste_sign",
-              kernel_constraint="weight_clip")
+              kernel_constraint="weight_clip",
+              use_bias=False)
 
 model = tf.keras.models.Sequential()
 
-input_shape = (28, 28, 1) # Input img shape
-filters_a = 32 # Number of output channels
-kernel_a = (4, 4) # Kernel dimension
+input_shape = (28, 28, 1)  # Input img shape
+filters_a = 32  # Number of output channels
+kernel_a = (3, 3)  # Kernel dimension
 
-filters_b = 32 # Number of output channels
-kernel_b = (3, 3) # Kernel dimension
+filters_b = 32  # Number of output channels
+kernel_b = (2, 2)  # Kernel dimension
 
-model.add(lq.layers.QuantConv2D(filters_a, kernel_a,
-                                input_quantizer="ste_sign",
-                                kernel_quantizer="ste_sign",
-                                kernel_constraint="weight_clip",
-                                use_bias=False,
-                                input_shape=input_shape))
-# model.add(tf.keras.layers.MaxPooling2D((2, 2)))
-# model.add(tf.keras.layers.BatchNormalization(scale=False))
-# model.add(lq.layers.QuantConv2D(filters_b, kernel_b,
-#                                 input_quantizer="ste_sign",
-#                                 kernel_quantizer="ste_sign",
-#                                 kernel_constraint="weight_clip",
-#                                 use_bias=False,
-#                                 input_shape=input_shape))
-# model.add(tf.keras.layers.MaxPooling2D((2, 2)))
-# model.add(tf.keras.layers.BatchNormalization(scale=False))
+model.add(lq.layers.QuantConv2D(filters_a, kernel_a, **kwargs, input_shape=input_shape))
+model.add(tf.keras.layers.MaxPooling2D((2, 2)))
+model.add(tf.keras.layers.BatchNormalization(scale=False))
+model.add(lq.layers.QuantConv2D(filters_b, kernel_b, **kwargs))
+model.add(tf.keras.layers.MaxPooling2D((2, 2)))
+model.add(tf.keras.layers.BatchNormalization(scale=False))
 model.add(tf.keras.layers.Flatten())
-# model.add(lq.layers.QuantDense(128, use_bias=False, **kwargs))
-# model.add(tf.keras.layers.BatchNormalization(scale=False))
-model.add(lq.layers.QuantDense(10, use_bias=False, **kwargs))
-# model.add(tf.keras.layers.BatchNormalization(scale=False))
+model.add(lq.layers.QuantDense(32, **kwargs))
+model.add(tf.keras.layers.BatchNormalization(scale=False))
+model.add(lq.layers.QuantDense(10, **kwargs))
+model.add(tf.keras.layers.BatchNormalization(scale=False))
 # model.add(tf.keras.layers.Activation("softmax"))
+
 
 # Train NN
 model.compile(optimizer='adam',
@@ -68,18 +65,16 @@ test_loss, test_acc = model.evaluate(test_images, test_labels)
 
 layers, weights = retrieve_weights(model)
 
-#hotfix
-# layers = ["cn","mp","bn","cn","mp","bn","fl","fc","bn","fc","bn"]
+# hotfix
+layers = ["cn", "mp", "bn", "cn", "mp", "bn", "fl", "fc", "bn", "fc", "bn"]
 
-layers = ["cn", "fl", "fc"]
 my_model = setup_sim(weights, layers, [128, 10])
 
-#Check results
+# Check results
 input = test_images[0]
 
 # print(my_model.layers)
 prediction = my_model.predict(input)
-intermediate_outputs = list(model.predict(np.array([input])))
+intermediate_outputs = np.array(list(model.predict(np.array([input]))))
 
 check_result(prediction, intermediate_outputs)
-# plot_differences(intermediate_outputs, prediction)

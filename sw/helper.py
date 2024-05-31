@@ -120,7 +120,7 @@ def retrieve_weights(model):
         model.save("binary_model.h1")  # save binary weights
         for layer in model.layers:
             layers.append(type(layer))
-            weights.append(np.sign(layer.get_weights()))
+            weights.append((layer.get_weights()))
 
     return layers, weights
 
@@ -134,8 +134,9 @@ def setup_sim(weights, layers, quantdense_sizes):
             if n == 0:
                 my_model.add(Conv2D(make_kernels(weights[n]), (28, 28)))
             else:
+
                 input_shape = my_model.layers[n - 1].output_shape
-                my_model.add(Conv2D(make_kernels(weights[n]), input_shape))
+                my_model.add(Conv2D(make_kernels(np.sign(weights[n])), input_shape))
         elif layer == "bn":
             input_shape = my_model.layers[n - 1].output_shape
             my_model.add(BatchNormalization(input_shape, weights[n]))
@@ -144,7 +145,7 @@ def setup_sim(weights, layers, quantdense_sizes):
             my_model.add(Maxpool((2, 2), input_shape))
         elif layer == "fc":
             input_shape = my_model.layers[n - 1].output_shape
-            my_model.add(Quantdense(input_shape, quantdense_sizes[quantdense_layers], np.array(weights[n])))
+            my_model.add(Quantdense(input_shape, quantdense_sizes[quantdense_layers], np.sign(weights[n])))
             quantdense_layers += 1
         elif layer == "fl":
             input_shape = my_model.layers[n - 1].output_shape
@@ -153,7 +154,7 @@ def setup_sim(weights, layers, quantdense_sizes):
 
 
 def check_result(a, b):
-    if np.all(a == b):
+    if np.all(np.isclose(np.array(a), np.array(b), rtol=1e-03, atol=1e-08, equal_nan=False)):
         print("OUTPUTS ARE THE SAME")
     else:
         print("ERROR WRONG ANSWER")
