@@ -1,4 +1,8 @@
 import numpy as np
+import larq as lq
+import tensorflow as tf
+
+from sw.helper import make_kernels
 
 
 def binary_quantization(x):
@@ -12,8 +16,27 @@ class MyModel:
         self.outputs = []
         self.prediction = None
 
-    def add(self, my_layer):
-        self.layers.append(my_layer)
+        # NN Topology
+        self.kwargs = dict(input_quantizer="ste_sign",
+                      kernel_quantizer="ste_sign",
+                      kernel_constraint="weight_clip",
+                      use_bias=False)
+
+        self.larq_model = tf.keras.models.Sequential()
+
+    def add(self, layer):
+        if isinstance(layer, lq.layers.QuantConv2D):
+            self.larq_model.add(layer)
+            self.layers.append(Conv2D(make_kernels(layer.get_weights()), layer.input_shape[1:]))
+        elif isinstance(layer, tf.keras.layers.MaxPooling2D):
+            pass
+        elif isinstance(layer, tf.keras.layers.BatchNormalization):
+            pass
+        elif isinstance(layer, tf.keras.layers.Flatten):
+            pass
+        elif isinstance(layer, lq.layers.QuantDense):
+            pass
+
 
     def predict(self, input):
         interm_input = [input]

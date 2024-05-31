@@ -10,13 +10,15 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 import matplotlib
 
+from sw.simulator import MyModel
+
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 
 tf.keras.backend.set_floatx('float64')
-from sw.helper import retrieve_weights, setup_sim, plot_differences, check_result, plot_intermediate_results, get_output
+from sw.helper import retrieve_weights, plot_differences, check_result, plot_intermediate_results, get_output
 
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
 
@@ -55,19 +57,22 @@ model.add(lq.layers.QuantDense(10, **kwargs))
 model.add(tf.keras.layers.BatchNormalization(scale=False))
 
 
+
 # Train NN
 model.compile(optimizer='adam',
               loss='sparse_categorical_crossentropy',
               metrics=['accuracy'])
-model.fit(train_images, train_labels, batch_size=64, epochs=1)
-test_loss, test_acc = model.evaluate(test_images, test_labels)
+# model.fit(train_images, train_labels, batch_size=64, epochs=1)
+# test_loss, test_acc = model.evaluate(test_images, test_labels)
 
 layers, weights = retrieve_weights(model)
 
 # hotfix
 layers = ["cn", "mp", "bn", "cn", "mp", "bn", "fl", "fc", "bn", "fc", "bn"]
 
-my_model = setup_sim(weights, layers, [128, 10])
+# my_model = setup_sim(weights, layers, [128, 10])
+my_model = MyModel()
+my_model.add(lq.layers.QuantConv2D(filters_a, kernel_a, **kwargs, input_shape=input_shape))
 
 # Check results
 input = test_images[0]

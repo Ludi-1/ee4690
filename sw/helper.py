@@ -4,7 +4,7 @@ import numpy as np
 import larq as lq
 # from tensorflow.python.estimator import keras
 
-from sw.simulator import MyModel, Conv2D, Flatten, Quantdense, BatchNormalization, Maxpool
+# from sw.simulator import MyModel, Conv2D, Flatten, Quantdense, BatchNormalization, Maxpool
 
 
 # Helper functions:
@@ -122,33 +122,33 @@ def retrieve_weights(model):
 
     return layers, weights
 
-
-def setup_sim(weights, layers, quantdense_sizes):
-    my_model = MyModel()
-    quantdense_layers = 0
-
-    for n, layer in enumerate(layers):
-        if layer == "cn":
-            if n == 0:
-                my_model.add(Conv2D(make_kernels(weights[n]), (28, 28)))
-            else:
-
-                input_shape = my_model.layers[n - 1].output_shape
-                my_model.add(Conv2D(make_kernels(np.sign(weights[n])), input_shape))
-        elif layer == "bn":
-            input_shape = my_model.layers[n - 1].output_shape
-            my_model.add(BatchNormalization(input_shape, weights[n]))
-        elif layer == "mp":
-            input_shape = my_model.layers[n - 1].output_shape
-            my_model.add(Maxpool((2, 2), input_shape))
-        elif layer == "fc":
-            input_shape = my_model.layers[n - 1].output_shape
-            my_model.add(Quantdense(input_shape, quantdense_sizes[quantdense_layers], np.sign(weights[n])))
-            quantdense_layers += 1
-        elif layer == "fl":
-            input_shape = my_model.layers[n - 1].output_shape
-            my_model.add(Flatten(input_shape))
-    return my_model
+#
+# def setup_sim(weights, layers, quantdense_sizes):
+#     my_model = MyModel()
+#     quantdense_layers = 0
+#
+#     for n, layer in enumerate(layers):
+#         if layer == "cn":
+#             if n == 0:
+#                 my_model.add(Conv2D(make_kernels(weights[n]), (28, 28)))
+#             else:
+#
+#                 input_shape = my_model.layers[n - 1].output_shape
+#                 my_model.add(Conv2D(make_kernels(np.sign(weights[n])), input_shape))
+#         elif layer == "bn":
+#             input_shape = my_model.layers[n - 1].output_shape
+#             my_model.add(BatchNormalization(input_shape, weights[n]))
+#         elif layer == "mp":
+#             input_shape = my_model.layers[n - 1].output_shape
+#             my_model.add(Maxpool((2, 2), input_shape))
+#         elif layer == "fc":
+#             input_shape = my_model.layers[n - 1].output_shape
+#             my_model.add(Quantdense(input_shape, quantdense_sizes[quantdense_layers], np.sign(weights[n])))
+#             quantdense_layers += 1
+#         elif layer == "fl":
+#             input_shape = my_model.layers[n - 1].output_shape
+#             my_model.add(Flatten(input_shape))
+#     return my_model
 
 
 def check_result(a, b):
