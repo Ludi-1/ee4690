@@ -8,6 +8,7 @@
 import larq as lq
 import tensorflow as tf
 import numpy as np
+import os
 
 from sw import templates
 
@@ -34,6 +35,9 @@ model.compile(optimizer='adam',
 model.fit(train_images, train_labels, batch_size=64, epochs=6)
 test_loss, test_acc = model.evaluate(test_images, test_labels)
 lq.models.summary(model)
+
+if not os.path.exists("gen_hdl"):
+    os.mkdir("gen_hdl")
 
 ### PARSE FC FUNC
 def parse_fc(fc_weights, num):

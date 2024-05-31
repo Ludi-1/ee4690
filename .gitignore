@@ -4,3 +4,4 @@ sim_build
 __pycache__
 *.pyc
 gen_hdl
+*.vcd

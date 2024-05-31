@@ -1,9 +1,9 @@
-SIM = verilator
+SIM = icarus
 PWD=$(shell pwd)
 TOPLEVEL_LANG = verilog
 WAVES=1
-EXTRA_ARGS += --trace-fst --trace-structs
-EXTRA_ARGS += --trace --trace-structs
+# EXTRA_ARGS += --trace-fst --trace-structs
+# EXTRA_ARGS += --trace --trace-structs
 
 TOPLEVEL ?= register_file
 $(shell rm -rf sim_build)

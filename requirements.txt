@@ -1,2 +1,3 @@
 larq
 tensorflow
+cocotb
