@@ -16,7 +16,8 @@ class MyModel:
 
   def predict(self, input):
     interm_input = [input]
-    for layer in self.layers:
+    for n, layer in enumerate(self.layers):
+      print(n)
       interm_input = layer.inference(interm_input)
 
       self.outputs.append(interm_input)
@@ -40,6 +41,7 @@ class Conv2D(MyLayer):
   def inference(self, channels):
     sum = np.zeros((self.kernels.shape[0], self.output_shape[0], self.output_shape[0]))
     channels = np.sign(channels)
+    print(self.kernels)
 
     for k, channel_kernel in enumerate(self.kernels):
       for s, _ in enumerate(channel_kernel):

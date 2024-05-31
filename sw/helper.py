@@ -65,10 +65,13 @@ def plot_intermediate_results(intermediate_output, title):
 def plot_differences(list1, list2):
    # Ensure both lists have the same length by trimming the longer list
     # Calculate the differences
+    print(f"larq: {list1}")
+    # print(f"sim: {list2}")
     differences = [absolute_difference(element, list2[n]) for n, element in enumerate(list1[0])]
 
     # Plot the differences
     plt.figure()
+
     # plt.plot(list1[0], linestyle='-', marker='o', label = 'Larq')
     # plt.plot(list2, linestyle='-', marker='o', label = 'Simulation')
     plt.plot(differences, linestyle='-', marker='o', label = 'Difference')
@@ -122,24 +125,23 @@ def setup_sim(weights, layers, quantdense_sizes):
   quantdense_layers = 0
 
   for n, layer in enumerate(layers):
-    if type(layer) is lq.layers.QuantConv2D:
+    if layer is "cn":
         if n == 0:
-            my_model.add(Conv2D(weights[n], (28, 28), 1))
+            my_model.add(Conv2D(weights[n], (28, 28)))
         else:
             input_shape = my_model.layers[n-1].output_shape
-            print(input_shape)
             my_model.add(Conv2D(weights[n], input_shape))
-    elif type(layer) is keras.src.layers.normalization.batch_normalization.BatchNormalization:
+    elif layer is "bn":
         input_shape = my_model.layers[n-1].output_shape
         my_model.add(BatchNormalization(input_shape, weights[n]))
-    elif type(layer) is keras.src.layers.pooling.max_pooling2d.MaxPooling2D:
+    elif layer is "mp":
         input_shape = my_model.layers[n-1].output_shape
         my_model.add(Maxpool((2, 2), input_shape))
-    elif type(layer) is lq.layers.QuantDense:
+    elif layer is "fc":
         input_shape = my_model.layers[n-1].output_shape
         my_model.add(Quantdense(input_shape, quantdense_sizes[quantdense_layers], np.array(weights[n])))
         quantdense_layers += 1
-    elif type(layer) is keras.src.layers.reshaping.flatten.Flatten:
+    elif layer is "fl":
         input_shape = my_model.layers[n-1].output_shape
         my_model.add(Flatten(input_shape))
   return my_model

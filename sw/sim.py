@@ -42,22 +42,22 @@ model.add(lq.layers.QuantConv2D(filters_a, kernel_a,
                                 kernel_constraint="weight_clip",
                                 use_bias=False,
                                 input_shape=input_shape))
-model.add(tf.keras.layers.MaxPooling2D((2, 2)))
-model.add(tf.keras.layers.BatchNormalization(scale=False))
-model.add(lq.layers.QuantConv2D(filters_b, kernel_b,
-                                input_quantizer="ste_sign",
-                                kernel_quantizer="ste_sign",
-                                kernel_constraint="weight_clip",
-                                use_bias=False,
-                                input_shape=input_shape))
-model.add(tf.keras.layers.MaxPooling2D((2, 2)))
-model.add(tf.keras.layers.BatchNormalization(scale=False))
+# model.add(tf.keras.layers.MaxPooling2D((2, 2)))
+# model.add(tf.keras.layers.BatchNormalization(scale=False))
+# model.add(lq.layers.QuantConv2D(filters_b, kernel_b,
+#                                 input_quantizer="ste_sign",
+#                                 kernel_quantizer="ste_sign",
+#                                 kernel_constraint="weight_clip",
+#                                 use_bias=False,
+#                                 input_shape=input_shape))
+# model.add(tf.keras.layers.MaxPooling2D((2, 2)))
+# model.add(tf.keras.layers.BatchNormalization(scale=False))
 model.add(tf.keras.layers.Flatten())
-model.add(lq.layers.QuantDense(128, use_bias=False, **kwargs))
-model.add(tf.keras.layers.BatchNormalization(scale=False))
+# model.add(lq.layers.QuantDense(128, use_bias=False, **kwargs))
+# model.add(tf.keras.layers.BatchNormalization(scale=False))
 model.add(lq.layers.QuantDense(10, use_bias=False, **kwargs))
-model.add(tf.keras.layers.BatchNormalization(scale=False))
-model.add(tf.keras.layers.Activation("softmax"))
+# model.add(tf.keras.layers.BatchNormalization(scale=False))
+# model.add(tf.keras.layers.Activation("softmax"))
 
 # Train NN
 model.compile(optimizer='adam',
@@ -67,14 +67,17 @@ model.fit(train_images, train_labels, batch_size=64, epochs=1)
 test_loss, test_acc = model.evaluate(test_images, test_labels)
 
 layers, weights = retrieve_weights(model)
+#hotfix
+# layers = ["cn","mp","bn","cn","mp","bn","fl","fc","bn","fc","bn"]
 
-mymodel = setup_sim(weights, layers, [128, 10])
+layers = ["cn", "fl", "fc"]
+my_model = setup_sim(weights, layers, [128, 10])
 
 #Check results
-#TODO remove np.sign
 input = test_images[0]
 
-prediction = mymodel.predict(input)
+print(my_model.layers)
+prediction = my_model.predict(input)
 intermediate_outputs = list(model.predict(np.array([input])))
 
 plot_differences(intermediate_outputs, prediction)
