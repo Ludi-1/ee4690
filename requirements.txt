@@ -1,1 +1,6 @@
 larq
+tensorflow-probability==0.24.0
+tensorflow==2.15
+matplotlib
+scipy
+keras

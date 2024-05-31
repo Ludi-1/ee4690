@@ -9,6 +9,11 @@ import larq as lq
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
+import os
+
+from sw.helper import retrieve_weights
+
+os.environ["TF_USE_LEGACY_KERAS"] = "1"
 
 # Image dataset
 (train_images, train_labels), (test_images, test_labels) = tf.keras.datasets.mnist.load_data()
@@ -62,17 +67,6 @@ model.fit(train_images, train_labels, batch_size=64, epochs=6)
 test_loss, test_acc = model.evaluate(test_images, test_labels)
 
 
-# Extract weights TODO
-with lq.context.quantized_scope(True):
-    weights = model.layers[0].get_weights()
-    print(weights[0].shape)
 
-binarized_weights = weights[0]
-binarized_weights[binarized_weights == -1] = 0
-print(weights[0].shape)
-rows, cols, _, output_channels = weights[0].shape
-print(rows, cols, output_channels)
-for col in range(cols):
-    for row in range(rows):
-        for output_channel in range(output_channels):
-            print(row, col, output_channel, weights[0][row][col][0][output_channel])
+
+print(retrieve_weights(model))
