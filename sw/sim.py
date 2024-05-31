@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 
-from sw.helper import retrieve_weights, setup_sim
+from sw.helper import retrieve_weights, setup_sim, plot_differences
 
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
 
@@ -70,14 +70,11 @@ layers, weights = retrieve_weights(model)
 
 mymodel = setup_sim(weights, layers, [128, 10])
 
-print(mymodel)
-
-
 #Check results
+#TODO remove np.sign
+input = np.sign(test_images[0])
+
 prediction = mymodel.predict(input)
-
-plot_differences(intermediate_outputs, prediction)
-
-prediction = my_model.predict(input)
+intermediate_outputs = list(model.predict(np.array([input])))
 
 plot_differences(intermediate_outputs, prediction)

@@ -114,7 +114,7 @@ def retrieve_weights(model):
       model.save("binary_model.h1")  # save binary weights
       for layer in model.layers:
         layers.append(type(layer))
-        weights.append(layer.get_weights())
+        weights.append(np.sign(layer.get_weights()))
 
   return layers, weights
 
@@ -143,4 +143,4 @@ def setup_sim(weights, layers, quantdense_sizes):
     elif type(layer) is keras.src.layers.reshaping.flatten.Flatten:
         input_shape = my_model.layers[n-1].output_shape
         my_model.add(Flatten(input_shape))
-  return layers, weights
+  return my_model
