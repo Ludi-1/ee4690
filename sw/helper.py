@@ -76,8 +76,6 @@ def plot_differences(list1, list2):
     # Plot the differences
     plt.figure()
 
-    # plt.plot(list1[0], linestyle='-', marker='o', label = 'Larq')
-    # plt.plot(list2, linestyle='-', marker='o', label = 'Simulation')
     plt.plot(differences, linestyle='-', marker='o', label='Difference')
     plt.title('Differences Between Larq and Simulation Outputs')
     plt.xlabel('Index')

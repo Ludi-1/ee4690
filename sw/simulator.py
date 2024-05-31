@@ -39,15 +39,16 @@ class Conv2D(MyLayer):
         self.kernels = kernels
         self.output_shape = (self.input_shape[0] - kernels.shape[2] + 1, self.input_shape[1] - kernels.shape[2] + 1)
 
+
     def inference(self, channels):
-        sum = np.zeros((self.kernels.shape[0], self.output_shape[0], self.output_shape[0]))
+        temp = np.zeros((self.kernels.shape[0], self.output_shape[0], self.output_shape[0]))
         channels = np.sign(channels)
 
         for k, channel_kernel in enumerate(self.kernels):
             for s, _ in enumerate(channel_kernel):
-                sum[k] += convolve2D(channels[s], self.kernels[k][s])
+                temp[k] += convolve2D(channels[s], self.kernels[k][s])
 
-        self.output = sum
+        self.output = temp
         return self.output
 
 
@@ -155,17 +156,14 @@ def convolve2D(input_mat, kernel_mat):
     # Ensure none of the inputs are empty.
     if input_mat.size == 0 or kernel_mat.size == 0:
         raise Exception("Error! Empty matrices found.")
-        return [[]]
 
     # Ensure the input is a square matrix.
     if input_mat.shape[0] != input_mat.shape[1]:
         raise Exception("Error! The input is not a square matrix.")
-        return [[]]
 
     # Ensure the kernel is a square matrix.
     if kernel_mat.shape[0] != kernel_mat.shape[1]:
         raise Exception("Error! The kernel is not a square matrix.")
-        return [[]]
 
     # Get the size of the input and kernel matrices.
     input_size = input_mat.shape[0]
@@ -174,7 +172,6 @@ def convolve2D(input_mat, kernel_mat):
     # Ensure the kernel is not larger than the input matrix.
     if input_size < kernel_size:
         raise Exception("Error! The kernel is larger than the input.")
-        return [[]]
 
     # Flip the kernel.
     kernel_mat = kernel_mat

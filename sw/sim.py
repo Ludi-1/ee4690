@@ -53,7 +53,6 @@ model.add(lq.layers.QuantDense(32, **kwargs))
 model.add(tf.keras.layers.BatchNormalization(scale=False))
 model.add(lq.layers.QuantDense(10, **kwargs))
 model.add(tf.keras.layers.BatchNormalization(scale=False))
-# model.add(tf.keras.layers.Activation("softmax"))
 
 
 # Train NN

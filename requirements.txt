@@ -1,6 +1,8 @@
-larq
+larq~=0.13.3
 tensorflow-probability==0.24.0
 tensorflow==2.15
-matplotlib
+matplotlib~=3.9.0
 scipy
 kera
+numpy~=1.26.4
+keras~=2.15.0
