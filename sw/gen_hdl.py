@@ -7,8 +7,9 @@
 # Libraries
 import larq as lq
 import tensorflow as tf
-import matplotlib.pyplot as plt
 import numpy as np
+
+from sw import templates
 
 # Image dataset
 (train_images, train_labels), (test_images, test_labels) = tf.keras.datasets.mnist.load_data()
@@ -23,56 +24,39 @@ kwargs = dict(input_quantizer="ste_sign",
               kernel_constraint="weight_clip")
 
 model = tf.keras.models.Sequential()
-
-input_shape = (28, 28, 1) # Input img shape
-filters_a = 32 # Number of output channels
-kernel_a = (4, 4) # Kernel dimension
-
-filters_b = 32 # Number of output channels
-kernel_b = (3, 3) # Kernel dimension
-
-model.add(lq.layers.QuantConv2D(filters_a, kernel_a,
-                                input_quantizer="ste_sign",
-                                kernel_quantizer="ste_sign",
-                                kernel_constraint="weight_clip",
-                                use_bias=False,
-                                input_shape=input_shape))
-model.add(tf.keras.layers.MaxPooling2D((2, 2)))
-model.add(tf.keras.layers.BatchNormalization(scale=False))
-model.add(lq.layers.QuantConv2D(filters_b, kernel_b,
-                                input_quantizer="ste_sign",
-                                kernel_quantizer="ste_sign",
-                                kernel_constraint="weight_clip",
-                                use_bias=False,
-                                input_shape=input_shape))
-model.add(tf.keras.layers.MaxPooling2D((2, 2)))
-model.add(tf.keras.layers.BatchNormalization(scale=False))
 model.add(tf.keras.layers.Flatten())
-model.add(lq.layers.QuantDense(128, use_bias=False, **kwargs))
-model.add(tf.keras.layers.BatchNormalization(scale=False))
 model.add(lq.layers.QuantDense(10, use_bias=False, **kwargs))
-model.add(tf.keras.layers.BatchNormalization(scale=False))
 model.add(tf.keras.layers.Activation("softmax"))
 
-# Train NN
 model.compile(optimizer='adam',
               loss='sparse_categorical_crossentropy',
               metrics=['accuracy'])
 model.fit(train_images, train_labels, batch_size=64, epochs=6)
 test_loss, test_acc = model.evaluate(test_images, test_labels)
+lq.models.summary(model)
 
+### PARSE FC FUNC
+def parse_fc(fc_weights, num):
+    fc_weights[fc_weights == -1] = 0
+    fc_weights = fc_weights.T
+    xnor = ""
+    weight_dim = fc_weights.shape
+    for output_neuron in range(weight_dim[0]):
+        for input_neuron in range(weight_dim[1]):
+            weight = fc_weights[output_neuron][input_neuron]
+            if weight == 0:
+                xnor += f"assign xnor_result[{input_neuron}][{output_neuron}] = ~i_data[{input_neuron}];\n"
+            elif weight == 1:
+                xnor += f"assign xnor_result[{input_neuron}][{output_neuron}] = i_data[{input_neuron}];\n"
+            else:
+                raise Exception(f"neuron value not 0 or 1: {input_neuron}")
 
-# Extract weights TODO
+    output_hdl = templates.FC_TEMPLATE.replace("%XNOR_GEN%", xnor)
+    with open(f"gen_hdl/fc_layer_{num}.sv", "w") as f:
+        f.write(output_hdl)
+
+# Extract weights
 with lq.context.quantized_scope(True):
-    weights = model.layers[0].get_weights()
-    print(weights[0].shape)
+    weights = model.layers[1].get_weights()
 
-binarized_weights = weights[0]
-binarized_weights[binarized_weights == -1] = 0
-print(weights[0].shape)
-rows, cols, _, output_channels = weights[0].shape
-print(rows, cols, output_channels)
-for col in range(cols):
-    for row in range(rows):
-        for output_channel in range(output_channels):
-            print(row, col, output_channel, weights[0][row][col][0][output_channel])
+parse_fc(weights[0], 0)
