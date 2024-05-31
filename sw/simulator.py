@@ -32,33 +32,19 @@ class MyLayer:
 
 
 class Conv2D(MyLayer):
-  def __init__(self, kernels, input_shape, nr_input_images):
+  def __init__(self, kernels, input_shape):
     MyLayer.__init__(self, input_shape)
     self.kernels = kernels
-    self.output_shape = (self.input_shape[0]-kernels[0].shape[0]+1, self.input_shape[1]-kernels[0].shape[1]+1)
+    self.output_shape = (self.input_shape[0] - kernels.shape[2] + 1, self.input_shape[1] - kernels.shape[2] + 1)
 
   def inference(self, channels):
-    # Kernels: Channel, kernels, rows, columns
-    # Channels: Input is Channels, rows, columns
-    sum = np.zeros((self.kernels.shape[1], self.output_shape[1], self.output_shape[1]))
-    # print(sum)
+    sum = np.zeros((self.kernels.shape[0], self.output_shape[0], self.output_shape[0]))
     channels = np.sign(channels)
-    # print("kernels shape: " + str(np.array(self.kernels).shape))
-    # print(np.array(channels).shape)
-    # REVERCE KERNELS!!!
 
     for k, channel_kernel in enumerate(self.kernels):
-       for s, kernel in enumerate(channel_kernel):
-          # for i, channel in enumerate(channels):
-          # print("Input channel")
-          # plot_intermediate_results([channel], "channel used")
-          # print("Kernel used: "+str(s)+" " + str(sub_kernel))
-          # print("output feature")
-          # plot_intermediate_results([ convolve2D(channel, np.array(sub_kernel[i]))], "result")
-          # for each channel calculate all the
-          for c, channel in enumerate(channels):
-            sum[k] += convolve2D(channel, kernel)
-            # plot_intermediate_results([convolve2D(channels[c], kernel)], "inter restult")
+      for s, _ in enumerate(channel_kernel):
+        sum[k] += convolve2D(channels[s], self.kernels[k][s])
+
     self.output = sum
     return self.output
 

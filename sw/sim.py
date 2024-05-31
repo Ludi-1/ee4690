@@ -72,7 +72,7 @@ mymodel = setup_sim(weights, layers, [128, 10])
 
 #Check results
 #TODO remove np.sign
-input = np.sign(test_images[0])
+input = test_images[0]
 
 prediction = mymodel.predict(input)
 intermediate_outputs = list(model.predict(np.array([input])))

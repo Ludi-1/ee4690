@@ -89,7 +89,6 @@ def absolute_difference(num1, num2):
         return num2 - num1
 
 
-
 def make_kernels(kernels):
 
   # Discard Bias
@@ -97,14 +96,14 @@ def make_kernels(kernels):
   (n_rows, n_columns, n_features, n_kernels) = kernels.shape
 
   # Channel, kernels, rows, columns
-  weights = np.empty((n_features, n_kernels, n_rows, n_columns))
+  weights = np.empty((n_kernels, n_features , n_rows, n_columns))
 
 
   for r, rows in enumerate(kernels):
     for c, column in enumerate(rows):
-      for f, feature in enumerate(column):
-        for e, element in enumerate(feature):
-          weights[f][e][r][c] = element
+      for f, channel in enumerate(column):
+        for e, element in enumerate(channel):
+          weights[e][f][r][c] = element
   return weights
 
 def retrieve_weights(model):
@@ -144,3 +143,9 @@ def setup_sim(weights, layers, quantdense_sizes):
         input_shape = my_model.layers[n-1].output_shape
         my_model.add(Flatten(input_shape))
   return my_model
+
+def check_result(a, b):
+  if  np.all(a == b):
+    print("OUTPUTS ARE THE SAME")
+  else:
+    print("ERROR WRONG ANSWER")
