@@ -35,7 +35,7 @@ kwargs = dict(input_quantizer="ste_sign",
               kernel_constraint="weight_clip",
               use_bias=False)
 
-model = tf.keras.models.Sequential()
+model = MyModel()
 
 input_shape = (28, 28, 1)  # Input img shape
 filters_a = 32  # Number of output channels
@@ -56,29 +56,17 @@ model.add(tf.keras.layers.BatchNormalization(scale=False))
 model.add(lq.layers.QuantDense(10, **kwargs))
 model.add(tf.keras.layers.BatchNormalization(scale=False))
 
-
-
-# Train NN
+# Train NNy
 model.compile(optimizer='adam',
               loss='sparse_categorical_crossentropy',
               metrics=['accuracy'])
-# model.fit(train_images, train_labels, batch_size=64, epochs=1)
-# test_loss, test_acc = model.evaluate(test_images, test_labels)
 
-layers, weights = retrieve_weights(model)
+model.fit(train_images, train_labels, batch_size=64, epochs=1)
+test_loss, test_acc = model.evaluate(test_images, test_labels)
 
-# hotfix
-layers = ["cn", "mp", "bn", "cn", "mp", "bn", "fl", "fc", "bn", "fc", "bn"]
+valid, _ = model.simulate(test_images[0:10])
+if valid:
+    print("The simulation test has passed")
+else:
+    print("ERROR: The simulation test has FAILED")
 
-# my_model = setup_sim(weights, layers, [128, 10])
-my_model = MyModel()
-my_model.add(lq.layers.QuantConv2D(filters_a, kernel_a, **kwargs, input_shape=input_shape))
-
-# Check results
-input = test_images[0]
-
-# print(my_model.layers)
-prediction = my_model.predict(input)
-intermediate_outputs = np.array(list(model.predict(np.array([input]))))
-
-check_result(prediction, intermediate_outputs)

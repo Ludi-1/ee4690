@@ -1,8 +1,8 @@
 import numpy as np
 import larq as lq
 import tensorflow as tf
-
-from sw.helper import make_kernels
+from sw.helper import make_kernels, convolve2D
+import keras
 
 
 def binary_quantization(x):
@@ -13,41 +13,84 @@ def binary_quantization(x):
 class MyModel:
     def __init__(self):
         self.layers = []
-        self.outputs = []
+        # self.outputs = []
         self.prediction = None
-
+        self.output_size = None
         # NN Topology
         self.kwargs = dict(input_quantizer="ste_sign",
-                      kernel_quantizer="ste_sign",
-                      kernel_constraint="weight_clip",
-                      use_bias=False)
+                           kernel_quantizer="ste_sign",
+                           kernel_constraint="weight_clip",
+                           use_bias=False)
 
-        self.larq_model = tf.keras.models.Sequential()
+        self.larq_model = keras.models.Sequential()
 
     def add(self, layer):
-        if isinstance(layer, lq.layers.QuantConv2D):
-            self.larq_model.add(layer)
-            self.layers.append(Conv2D(make_kernels(layer.get_weights()), layer.input_shape[1:]))
-        elif isinstance(layer, tf.keras.layers.MaxPooling2D):
-            pass
-        elif isinstance(layer, tf.keras.layers.BatchNormalization):
-            pass
-        elif isinstance(layer, tf.keras.layers.Flatten):
-            pass
-        elif isinstance(layer, lq.layers.QuantDense):
-            pass
+        self.larq_model.add(layer)
 
+        if isinstance(layer, lq.layers.QuantConv2D):
+            weights = layer.get_weights()
+            self.layers.append(Conv2D(np.sign(make_kernels(np.sign(weights))), layer.input_shape[1:]))
+
+        elif isinstance(layer, keras.layers.MaxPooling2D):
+            input_shape = self.layers[-1].output_shape
+            self.layers.append(Maxpool(layer.pool_size, input_shape))
+
+        elif isinstance(layer, keras.layers.BatchNormalization):
+            weights = layer.get_weights()
+            input_shape = self.layers[-1].output_shape
+            self.layers.append(BatchNormalization(input_shape, weights))
+
+        elif isinstance(layer, keras.layers.Flatten):
+            input_shape = self.layers[-1].output_shape
+            self.layers.append(Flatten(input_shape))
+
+        elif isinstance(layer, lq.layers.QuantDense):
+            weights = layer.get_weights()
+            input_shape = self.layers[-1].output_shape
+            units = layer.units
+            self.layers.append(Quantdense(input_shape, units, np.sign(weights)))
 
     def predict(self, input):
         interm_input = [input]
         for n, layer in enumerate(self.layers):
             interm_input = layer.inference(interm_input)
 
-            self.outputs.append(interm_input)
-
         self.prediction = interm_input
         return self.prediction
 
+    def compile(self, optimizer, loss, metrics):
+        self.larq_model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
+
+    def fit(self, train_images, train_labels, batch_size, epochs):
+        self.larq_model.fit(train_images, train_labels, batch_size=batch_size, epochs=epochs)
+        self.update_weights()
+
+    def update_weights(self):
+        for i, layer in enumerate(self.layers):
+            if layer.has_weights():
+                weights = self.larq_model.layers[i].get_weights()
+                layer.set_weigths(weights)
+
+    def evaluate(self, test_images, test_labels):
+        return self.larq_model.evaluate(test_images, test_labels)
+
+    def get_weights(self):
+        pass
+
+    def predict_larq(self, input):
+        return self.larq_model.predict(np.array([input]))
+
+    def simulate(self, inputs):
+        results = []
+        for input in inputs:
+
+            my_model_result = self.predict(input)
+            larq_model_result = self.predict_larq(input)
+
+            result = np.all(np.isclose(np.array(my_model_result), np.array(larq_model_result), rtol=1e-03, atol=1e-08, equal_nan=False))
+            results.append(result)
+        valid = np.all(results)
+        return (valid, results)
 
 class MyLayer:
     def __init__(self, input_shape):
@@ -62,7 +105,6 @@ class Conv2D(MyLayer):
         self.kernels = kernels
         self.output_shape = (self.input_shape[0] - kernels.shape[2] + 1, self.input_shape[1] - kernels.shape[2] + 1)
 
-
     def inference(self, channels):
         temp = np.zeros((self.kernels.shape[0], self.output_shape[0], self.output_shape[0]))
         channels = np.sign(channels)
@@ -74,12 +116,16 @@ class Conv2D(MyLayer):
         self.output = temp
         return self.output
 
+    def set_weights(self, weights):
+        self.kernels = make_kernels(weights)
+
 
 class Flatten(MyLayer):
     def __init__(self, input_shape):
         MyLayer.__init__(self, input_shape)
 
     def inference(self, interm_input):
+        self.output = []
         for i, row in enumerate(interm_input[0]):
             for j, col in enumerate(row):
                 for m, image in enumerate(interm_input):
@@ -97,7 +143,7 @@ class Maxpool(MyLayer):
         # Convert the input list of lists to a NumPy array
         n = self.kernel_shape[0]
         input_array = np.array(interm_input)
-
+        self.output = []
         # Get the dimensions of the input array
         l, h, w = input_array.shape
 
@@ -145,6 +191,8 @@ class Quantdense(MyLayer):
 
         return self.output
 
+    def set_weights(self, weights):
+        self.weights = np.array(weights)
 
 # Learnable parameters: Epsilon, Gamma
 # Not learnable parameters: Mean, Variance
@@ -158,6 +206,7 @@ class BatchNormalization(MyLayer):
 
     def inference(self, interm_input):
         input = np.array(interm_input)
+        self.output = []
 
         # 2d batchnorm:
         for n, image in enumerate(input):
@@ -166,64 +215,5 @@ class BatchNormalization(MyLayer):
 
         return self.output
 
-
-# https://github.com/lebrice/VHDL-CPU/blob/master/Final%20Deliverable/processor/decodeStage/decodeStage.vhd
-def convolve2D(input_mat, kernel_mat):
-    """
-  Perform the 2-D convolution operation.
-
-  :input_mat: the input matrix.
-  :kernel_mat: the kernel matrix used for convolution.
-  """
-
-    # Ensure none of the inputs are empty.
-    if input_mat.size == 0 or kernel_mat.size == 0:
-        raise Exception("Error! Empty matrices found.")
-
-    # Ensure the input is a square matrix.
-    if input_mat.shape[0] != input_mat.shape[1]:
-        raise Exception("Error! The input is not a square matrix.")
-
-    # Ensure the kernel is a square matrix.
-    if kernel_mat.shape[0] != kernel_mat.shape[1]:
-        raise Exception("Error! The kernel is not a square matrix.")
-
-    # Get the size of the input and kernel matrices.
-    input_size = input_mat.shape[0]
-    kernel_size = kernel_mat.shape[0]
-
-    # Ensure the kernel is not larger than the input matrix.
-    if input_size < kernel_size:
-        raise Exception("Error! The kernel is larger than the input.")
-
-    # Flip the kernel.
-    kernel_mat = kernel_mat
-
-    # Set up the output matrix.
-    output_size = (input_size - kernel_size) + 1
-    output_mat = np.zeros(shape=(output_size, output_size))
-
-    row_offset = 0
-
-    for output_row in range(output_size):
-        col_offset = 0
-
-        for output_col in range(output_size):
-            kernel_row = 0
-
-            for row in range(row_offset, row_offset + kernel_size):
-                kernel_col = 0
-
-                for col in range(col_offset, col_offset + kernel_size):
-                    # Perform the convolution computation.
-                    output_mat[output_row][output_col] += kernel_mat[kernel_row][kernel_col].item() * input_mat[row][
-                        col].item()
-                    kernel_col += 1
-
-                kernel_row += 1
-
-            col_offset += 1
-
-        row_offset += 1
-
-    return output_mat
+    def set_weights(self, weights):
+        self.weights = weights

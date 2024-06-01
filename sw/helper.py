@@ -156,3 +156,64 @@ def check_result(a, b):
         print("OUTPUTS ARE THE SAME")
     else:
         print("ERROR WRONG ANSWER")
+
+# https://github.com/lebrice/VHDL-CPU/blob/master/Final%20Deliverable/processor/decodeStage/decodeStage.vhd
+def convolve2D(input_mat, kernel_mat):
+    """
+  Perform the 2-D convolution operation.
+
+  :input_mat: the input matrix.
+  :kernel_mat: the kernel matrix used for convolution.
+  """
+
+    # Ensure none of the inputs are empty.
+    if input_mat.size == 0 or kernel_mat.size == 0:
+        raise Exception("Error! Empty matrices found.")
+
+    # Ensure the input is a square matrix.
+    if input_mat.shape[0] != input_mat.shape[1]:
+        raise Exception("Error! The input is not a square matrix.")
+
+    # Ensure the kernel is a square matrix.
+    if kernel_mat.shape[0] != kernel_mat.shape[1]:
+        raise Exception("Error! The kernel is not a square matrix.")
+
+    # Get the size of the input and kernel matrices.
+    input_size = input_mat.shape[0]
+    kernel_size = kernel_mat.shape[0]
+
+    # Ensure the kernel is not larger than the input matrix.
+    if input_size < kernel_size:
+        raise Exception("Error! The kernel is larger than the input.")
+
+    # Flip the kernel.
+    kernel_mat = kernel_mat
+
+    # Set up the output matrix.
+    output_size = (input_size - kernel_size) + 1
+    output_mat = np.zeros(shape=(output_size, output_size))
+
+    row_offset = 0
+
+    for output_row in range(output_size):
+        col_offset = 0
+
+        for output_col in range(output_size):
+            kernel_row = 0
+
+            for row in range(row_offset, row_offset + kernel_size):
+                kernel_col = 0
+
+                for col in range(col_offset, col_offset + kernel_size):
+                    # Perform the convolution computation.
+                    output_mat[output_row][output_col] += kernel_mat[kernel_row][kernel_col].item() * input_mat[row][
+                        col].item()
+                    kernel_col += 1
+
+                kernel_row += 1
+
+            col_offset += 1
+
+        row_offset += 1
+
+    return output_mat
