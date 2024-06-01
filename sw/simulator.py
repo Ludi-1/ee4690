@@ -84,13 +84,14 @@ class MyModel:
     def simulate(self, inputs):
         results = []
         for input in inputs:
-
             my_model_result = self.predict(input)
             larq_model_result = self.predict_larq(input)
-            result = np.all(np.isclose(np.array(my_model_result), np.array(larq_model_result), rtol=1e-03, atol=1e-08, equal_nan=False))
+            result = np.all(np.isclose(np.array(my_model_result), np.array(larq_model_result), rtol=1e-03, atol=1e-08,
+                                       equal_nan=False))
             results.append(result)
         valid = np.all(results)
-        return (valid, results)
+        return valid, results
+
 
 class MyLayer:
     def __init__(self, input_shape):
@@ -198,16 +199,16 @@ class Quantdense(MyLayer):
     def set_weights(self, weights):
         self.weights = np.array(np.sign(weights))
 
+
 # Learnable parameters: Epsilon, Gamma
 # Not learnable parameters: Mean, Variance
 class BatchNormalization(MyLayer):
     def __init__(self, input_shape, weights):
         MyLayer.__init__(self, input_shape)
         self.has_weights = True
-        self.weights = weights
-        self.beta = self.weights[0]
-        self.mean = self.weights[1]
-        self.var = self.weights[2]
+        self.beta = weights[0]
+        self.mean = weights[1]
+        self.var = weights[2]
         self.output_shape = input_shape
 
     def inference(self, interm_input):
@@ -222,4 +223,6 @@ class BatchNormalization(MyLayer):
         return self.output
 
     def set_weights(self, weights):
-        self.weights = weights
+        self.beta = weights[0]
+        self.mean = weights[1]
+        self.var = weights[2]
