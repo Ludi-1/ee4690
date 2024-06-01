@@ -29,7 +29,7 @@ class MyModel:
 
         if isinstance(layer, lq.layers.QuantConv2D):
             weights = layer.get_weights()
-            self.layers.append(Conv2D(np.sign(make_kernels(np.sign(weights))), layer.input_shape[1:]))
+            self.layers.append(Conv2D(make_kernels(np.sign(weights)), layer.input_shape[1:]))
 
         elif isinstance(layer, keras.layers.MaxPooling2D):
             input_shape = self.layers[-1].output_shape
@@ -67,13 +67,14 @@ class MyModel:
 
     def update_weights(self):
         for i, layer in enumerate(self.layers):
-            if layer.has_weights():
+            if layer.has_weights:
                 weights = self.larq_model.layers[i].get_weights()
-                layer.set_weigths(weights)
+                layer.set_weights(weights)
 
     def evaluate(self, test_images, test_labels):
         return self.larq_model.evaluate(test_images, test_labels)
 
+    # TODO
     def get_weights(self):
         pass
 
@@ -86,7 +87,6 @@ class MyModel:
 
             my_model_result = self.predict(input)
             larq_model_result = self.predict_larq(input)
-
             result = np.all(np.isclose(np.array(my_model_result), np.array(larq_model_result), rtol=1e-03, atol=1e-08, equal_nan=False))
             results.append(result)
         valid = np.all(results)
@@ -102,6 +102,7 @@ class MyLayer:
 class Conv2D(MyLayer):
     def __init__(self, kernels, input_shape):
         MyLayer.__init__(self, input_shape)
+        self.has_weights = True
         self.kernels = kernels
         self.output_shape = (self.input_shape[0] - kernels.shape[2] + 1, self.input_shape[1] - kernels.shape[2] + 1)
 
@@ -117,12 +118,13 @@ class Conv2D(MyLayer):
         return self.output
 
     def set_weights(self, weights):
-        self.kernels = make_kernels(weights)
+        self.kernels = make_kernels(np.sign(weights))
 
 
 class Flatten(MyLayer):
     def __init__(self, input_shape):
         MyLayer.__init__(self, input_shape)
+        self.has_weights = False
 
     def inference(self, interm_input):
         self.output = []
@@ -136,6 +138,7 @@ class Flatten(MyLayer):
 class Maxpool(MyLayer):
     def __init__(self, kernel_shape, input_shape):
         MyLayer.__init__(self, input_shape)
+        self.has_weights = False
         self.kernel_shape = kernel_shape
         self.output_shape = (self.input_shape[0] // self.kernel_shape[0], self.input_shape[1] // self.kernel_shape[1])
 
@@ -175,6 +178,7 @@ class Maxpool(MyLayer):
 class Quantdense(MyLayer):
     def __init__(self, input_shape, units, weights):
         MyLayer.__init__(self, input_shape)
+        self.has_weights = True
         self.units = units
         self.weights = weights
         self.output_shape = (1, units)
@@ -192,16 +196,18 @@ class Quantdense(MyLayer):
         return self.output
 
     def set_weights(self, weights):
-        self.weights = np.array(weights)
+        self.weights = np.array(np.sign(weights))
 
 # Learnable parameters: Epsilon, Gamma
 # Not learnable parameters: Mean, Variance
 class BatchNormalization(MyLayer):
     def __init__(self, input_shape, weights):
         MyLayer.__init__(self, input_shape)
-        self.beta = weights[0]
-        self.mean = weights[1]
-        self.var = weights[2]
+        self.has_weights = True
+        self.weights = weights
+        self.beta = self.weights[0]
+        self.mean = self.weights[1]
+        self.var = self.weights[2]
         self.output_shape = input_shape
 
     def inference(self, interm_input):
