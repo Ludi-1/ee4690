@@ -24,31 +24,59 @@ class MyModel:
 
         self.larq_model = keras.models.Sequential()
 
+        self.structure = []
+
     def add(self, layer):
         self.larq_model.add(layer)
 
         if isinstance(layer, lq.layers.QuantConv2D):
             weights = layer.get_weights()
             self.layers.append(Conv2D(make_kernels(np.sign(weights)), layer.input_shape[1:]))
+            struct = {"name": "layer_" + "conv_" + str(np.array(self.layers[-1].weights).shape),
+                      "input_shape": layer.input_shape,
+                      "output_shape": layer.output_shape,
+                      "weights": []}
+            self.structure.append(struct)
 
         elif isinstance(layer, keras.layers.MaxPooling2D):
             input_shape = self.layers[-1].output_shape
             self.layers.append(Maxpool(layer.pool_size, input_shape))
+            struct = {"name": "layer_" + "maxpool_" + str(layer.pool_size[0]) + "_" + str(layer.pool_size[1]),
+                      "input_shape": layer.input_shape,
+                      "output_shape": layer.output_shape,
+                      "weights": None}
+            self.structure.append(struct)
 
         elif isinstance(layer, keras.layers.BatchNormalization):
             weights = layer.get_weights()
             input_shape = self.layers[-1].output_shape
             self.layers.append(BatchNormalization(input_shape, weights))
+            struct = {"name": "layer_" + "batchnorm",
+                      "input_shape": layer.input_shape,
+                      "output_shape": layer.output_shape,
+                      "weights": []}
+            self.structure.append(struct)
 
         elif isinstance(layer, keras.layers.Flatten):
             input_shape = self.layers[-1].output_shape
             self.layers.append(Flatten(input_shape))
+            struct = {"name": "layer_" + "flatten",
+                      "input_shape": layer.input_shape,
+                      "output_shape": layer.output_shape,
+                      "weights": None}
+            self.structure.append(struct)
 
         elif isinstance(layer, lq.layers.QuantDense):
             weights = layer.get_weights()
             input_shape = self.layers[-1].output_shape
             units = layer.units
             self.layers.append(Quantdense(input_shape, units, np.sign(weights)))
+
+            struct = {"name": "layer_" + "fc",
+                      "input_shape": layer.input_shape,
+                      "output_shape": layer.output_shape,
+                      "weights": []}
+            self.structure.append(struct)
 
     def predict(self, input):
         interm_input = [input]
@@ -66,17 +94,14 @@ class MyModel:
         self.update_weights()
 
     def update_weights(self):
-        for i, layer in enumerate(self.layers):
-            if layer.has_weights:
+        for i, struct in enumerate(self.structure):
+            if struct["weights"] is not None:
                 weights = self.larq_model.layers[i].get_weights()
-                layer.set_weights(weights)
+                self.layers[i].set_weights(weights)
+                self.structure[i]["weights"] = self.layers[i].weights
 
     def evaluate(self, test_images, test_labels):
         return self.larq_model.evaluate(test_images, test_labels)
-
-    # TODO
-    def get_weights(self):
-        pass
 
     def predict_larq(self, input):
         return self.larq_model.predict(np.array([input]))
@@ -100,32 +125,47 @@ class MyLayer:
         self.output = []
 
 
+"""
+       channels is an 4-D Array with the following format:
+           (input_channel_index, output_channel_index, kernel_row_index, kernel_column_index)
+       weights is an 2-D Array with the following format:
+           (row_index, column_index)
+       output is an 3-D Array with the following format:
+           (output_channel_index, kernel_row_index, kernel_column_index)
+
+       The output equation is as follows:
+           output[k] += convolve2D(channels[s], weights[k][s])
+
+           or 
+
+           output[k] = convolve2D(channels[0], weights[k][0]) + convolve2D(channels[1], weights[k][1]) + ...
+"""
+
 class Conv2D(MyLayer):
     def __init__(self, kernels, input_shape):
         MyLayer.__init__(self, input_shape)
-        self.has_weights = True
-        self.kernels = kernels
+        self.weights = kernels
         self.output_shape = (self.input_shape[0] - kernels.shape[2] + 1, self.input_shape[1] - kernels.shape[2] + 1)
 
     def inference(self, channels):
-        temp = np.zeros((self.kernels.shape[0], self.output_shape[0], self.output_shape[0]))
+        temp = np.zeros((self.weights.shape[0], self.output_shape[0], self.output_shape[0]))
         channels = np.sign(channels)
 
-        for k, channel_kernel in enumerate(self.kernels):
+        for k, channel_kernel in enumerate(self.weights):
             for s, _ in enumerate(channel_kernel):
-                temp[k] += convolve2D(channels[s], self.kernels[k][s])
+                temp[k] += convolve2D(channels[s], self.weights[k][s])
 
         self.output = temp
         return self.output
 
     def set_weights(self, weights):
-        self.kernels = make_kernels(np.sign(weights))
+        self.weights = make_kernels(np.sign(weights))
 
 
 class Flatten(MyLayer):
     def __init__(self, input_shape):
         MyLayer.__init__(self, input_shape)
-        self.has_weights = False
+        self.output_shape = tuple([np.array(input_shape).size])
 
     def inference(self, interm_input):
         self.output = []
@@ -139,7 +179,6 @@ class Flatten(MyLayer):
 class Maxpool(MyLayer):
     def __init__(self, kernel_shape, input_shape):
         MyLayer.__init__(self, input_shape)
-        self.has_weights = False
         self.kernel_shape = kernel_shape
         self.output_shape = (self.input_shape[0] // self.kernel_shape[0], self.input_shape[1] // self.kernel_shape[1])
 
@@ -179,10 +218,18 @@ class Maxpool(MyLayer):
 class Quantdense(MyLayer):
     def __init__(self, input_shape, units, weights):
         MyLayer.__init__(self, input_shape)
-        self.has_weights = True
         self.units = units
         self.weights = weights
-        self.output_shape = (1, units)
+        self.output_shape = tuple([units])
+
+    """
+    input is an 1-D Array
+    weights is an 2-D Array
+    output is an 1-D array
+    
+    equation ->
+    output[i] = input[i] dot weights[i]
+    """
 
     def inference(self, interm_input):
         # Convert inputs to a numpy array
@@ -200,15 +247,25 @@ class Quantdense(MyLayer):
         self.weights = np.array(np.sign(weights))
 
 
-# Learnable parameters: Epsilon, Gamma
-# Not learnable parameters: Mean, Variance
+"""
+    Learnable parameters: Epsilon, Gamma
+    Not learnable parameters: Mean, Variance
+    input is an 1-D Array
+    weights is an 2-D Array
+    output is an 1-D array
+
+    equation ->
+    output[i] = input[i] dot weights[i]
+"""
+
+
 class BatchNormalization(MyLayer):
     def __init__(self, input_shape, weights):
         MyLayer.__init__(self, input_shape)
-        self.has_weights = True
-        self.beta = weights[0]
-        self.mean = weights[1]
-        self.var = weights[2]
+        # self.beta = weights[0]
+        # self.mean = weights[1]
+        # self.var = weights[2]
+        self.weights = weights
         self.output_shape = input_shape
 
     def inference(self, interm_input):
@@ -217,12 +274,16 @@ class BatchNormalization(MyLayer):
 
         # 2d batchnorm:
         for n, image in enumerate(input):
-            X_normalized = (image - self.mean[n]) / np.sqrt(self.var[n])
-            self.output.append(X_normalized + self.beta[n])
+            """
+            output = self.weights[0][n] + image - self.weights[1][n]) / np.sqrt(self.weights[2][n]
+            self.weights[0][n]- self.weights[1][n]) / np.sqrt(self.weights[2][n] + image > 0
+            - self.weights[0][n] + self.weights[1][n]) / np.sqrt(self.weights[2][n] < image
+            """
+
+            x_normalized = (image - self.weights[1][n]) / np.sqrt(self.weights[2][n])
+            self.output.append(x_normalized + self.weights[0][n])
 
         return self.output
 
     def set_weights(self, weights):
-        self.beta = weights[0]
-        self.mean = weights[1]
-        self.var = weights[2]
+        self.weights = weights

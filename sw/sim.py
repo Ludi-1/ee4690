@@ -39,10 +39,10 @@ model = MyModel()
 
 input_shape = (28, 28, 1)  # Input img shape
 filters_a = 32  # Number of output channels
-kernel_a = (3, 3)  # Kernel dimension
+kernel_a = (5, 5)  # Kernel dimension
 
-filters_b = 32  # Number of output channels
-kernel_b = (2, 2)  # Kernel dimension
+filters_b = 64  # Number of output channels
+kernel_b = (3, 3)  # Kernel dimension
 
 model.add(lq.layers.QuantConv2D(filters_a, kernel_a, **kwargs, input_shape=input_shape))
 model.add(tf.keras.layers.MaxPooling2D((2, 2)))
@@ -61,10 +61,13 @@ model.compile(optimizer='adam',
               loss='sparse_categorical_crossentropy',
               metrics=['accuracy'])
 
-model.fit(train_images, train_labels, batch_size=64, epochs=1)
+model.fit(train_images, train_labels, batch_size=64, epochs=2)
 test_loss, test_acc = model.evaluate(test_images, test_labels)
 
-valid, _ = model.simulate(test_images[0:10])
+for struct in model.structure:
+    print(struct["name"])
+valid, _ = model.simulate(test_images[0:1])
+
 if valid:
     print("The simulation test has passed")
 else:
