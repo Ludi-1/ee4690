@@ -68,8 +68,7 @@ endmodule"""
 # Template for the conv layer
 # TODO: parameterize over datatype size
 CONV_TEMPLATE = """module layer_%LAYER_NUM%_conv #(
-    parameter INPUT_DIM = 784,
-    parameter IMG_WIDTH = 28,
+    parameter INPUT_DIM = 28,   //28x28
     parameter OUTPUT_DIM = 10,
     parameter KERNEL_DIM = 3,
     parameter INPUT_CHANNELS = 1,
@@ -86,32 +85,30 @@ CONV_TEMPLATE = """module layer_%LAYER_NUM%_conv #(
     output o_we
 );
 
-reg window [OUTPUT_CHANNELS-1:0][KERNAL_DIM**2-1:0];
+localparam TEMP_SIZE = INPUT_CHANNELS * OUTPUT_CHANNELS * (KERNAL_DIM ** 2);
 
-ibuf_conv #(
-    .img_width(IMG_WIDTH),
-    kernel_dim(KERNEL_DIM),
-) ibuf (
-    .clk(clk),
-    .i_we(i_we),
-    .i_data(i_data[0]),
-    .o_data(window[0]),
-);
+reg window [INPUT_CHANNELS-1:0][KERNAL_DIM**2-1:0];
+reg temp [TEMP_SIZE-1:0];
 
-ibuf_conv #(
-    .img_width(IMG_WIDTH),
-    kernel_dim(KERNEL_DIM),
-) ibuf (
-    .clk(clk),
-    .i_we(i_we),
-    .i_data(i_data[0]),
-    .o_data(window[1]),
-);
+%BUFFER%
+# ibuf_conv #(
+#     .img_width(INPUT_DIM),
+#     .kernel_dim(KERNEL_DIM),
+# ) ibuf (
+#     .clk(clk),
+#     .i_we(i_we),
+#     .i_data(i_data[%INPUT_C%]),
+#     .o_data(window[%INPUT_C%]),
+# );
+
+%XNOR%
 
 always @(*) begin
     for (int i = 0; i < OUTPUT_CHANNELS; i++) begin
-        for (int j = 0; j < KERNEL_DIM; j++) begin
-            o_data[i] += weight XNOR window[i][j];
+        for (int j = 0; j < INPUT_CHANNELS; j++) begin
+            for (int k = 0; k < KERNEL_DIM ** 2; k++) begin
+            o[i] += temp[i * OUTPUT_CHANNELS + j * INPUT_CHANNELS + k];
+            end
         end
     end
 end
