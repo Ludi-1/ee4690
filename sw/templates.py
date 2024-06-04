@@ -69,6 +69,7 @@ endmodule"""
 # TODO: parameterize over datatype size
 CONV_TEMPLATE = """module layer_%LAYER_NUM%_conv #(
     parameter INPUT_DIM = 784,
+    parameter IMG_WIDTH = 28,
     parameter OUTPUT_DIM = 10,
     parameter KERNEL_DIM = 3,
     parameter INPUT_CHANNELS = 1,
@@ -79,12 +80,41 @@ CONV_TEMPLATE = """module layer_%LAYER_NUM%_conv #(
     input reset,
 
     input i_we,
-    input [DATATYPE_SIZE-1:0] i_data [INPUT_DIM-1:0],
+    input [DATATYPE_SIZE-1:0] i_data [INPUT_CHANNELS-1:0],
 
     output [DATATYPE_SIZE-1:0] o_data [OUTPUT_CHANNELS-1:0],
     output o_we
 );
 
+reg window [OUTPUT_CHANNELS-1:0][KERNAL_DIM**2-1:0];
+
+ibuf_conv #(
+    .img_width(IMG_WIDTH),
+    kernel_dim(KERNEL_DIM),
+) ibuf (
+    .clk(clk),
+    .i_we(i_we),
+    .i_data(i_data[0]),
+    .o_data(window[0]),
+);
+
+ibuf_conv #(
+    .img_width(IMG_WIDTH),
+    kernel_dim(KERNEL_DIM),
+) ibuf (
+    .clk(clk),
+    .i_we(i_we),
+    .i_data(i_data[0]),
+    .o_data(window[1]),
+);
+
+always @(*) begin
+    for (int i = 0; i < OUTPUT_CHANNELS; i++) begin
+        for (int j = 0; j < KERNEL_DIM; j++) begin
+            o_data[i] += weight XNOR window[i][j];
+        end
+    end
+end
 
 endmodule"""
 
@@ -105,3 +135,4 @@ BN_TEMPLATE = """module layer_%LAYER_NUM%_BN #(
 
 endmodule
 """
+
