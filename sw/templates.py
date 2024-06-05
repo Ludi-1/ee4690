@@ -48,9 +48,8 @@ end
 endmodule"""
 
 # Template for the conv layer
-# TODO: parameterize over datatype size
 CONV_TEMPLATE = """module layer_%LAYER_NUM%_conv #(
-    parameter INPUT_DIM = 784,
+    parameter INPUT_DIM = 28,
     parameter OUTPUT_DIM = 10,
     parameter KERNEL_DIM = 3,
     parameter INPUT_CHANNELS = 1,
@@ -61,11 +60,54 @@ CONV_TEMPLATE = """module layer_%LAYER_NUM%_conv #(
     input reset,
 
     input i_we,
-    input [DATATYPE_SIZE-1:0] i_data [INPUT_DIM-1:0],
+    input i_data [INPUT_CHANNELS-1:0],
 
-    output [DATATYPE_SIZE-1:0] o_data [OUTPUT_CHANNELS-1:0],
+    output o_data [OUTPUT_CHANNELS-1:0],
     output o_we
 );
 
+reg window [INPUT_CHANNELS-1:0][KERNEL_DIM**2-1:0];
+reg xnor [OUTPUT_CHANNELS-1:0][INPUT_CHANNELS-1:0][KERNEL_DIM**2-1:0];
+
+ibuf_conv #(
+    .img_width(INPUT_DIM),
+    .kernel_dim(KERNEL_DIM),
+    .input_channels(INPUT_CHANNELS)
+) ibuf (
+    .clk(clk),
+    .i_we(i_we),
+    .i_data(i_data),
+    .o_data(window)
+);
+
+%XNOR%
+
+always @(*) begin
+    for (int i = 0; i < OUTPUT_CHANNELS; i++) begin
+        for (int j = 0; j < INPUT_CHANNELS; j++) begin
+            for (int k = 0; k < KERNEL_DIM ** 2; k++) begin
+            o[i] += xnor[i][j][k];
+            end
+        end
+    end
+end
 
 endmodule"""
+
+BN_TEMPLATE = """module layer_%LAYER_NUM%_BN #(
+    parameter DIM = %DIM_DATA%,
+    parameter INPUT_DATA_SIZE = 32,
+    parameter OUTPUT_DATA_SIZE = 1,
+    parameter 
+)(
+    input clk,
+    input reset,
+
+    input [INPUT_DATA_SIZE - 1: 0] i_data [DIM -1 : 0],
+
+    output o_data [DIM - 1 : 0],
+);
+%COMPARE%
+
+endmodule
+"""

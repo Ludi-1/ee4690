@@ -61,6 +61,79 @@ def parse_fc(fc_weights, num):
     with open(f"gen_hdl/fc_layer_{num}.sv", "w") as f:
         f.write(output_hdl)
 
+### PARSE CONV
+heights = []
+widths = []
+channels = []
+output_shapes = [layer.output_shape for layer in model.layers]
+
+for shape in output_shapes:
+    if len(shape) == 4:  
+        _, height, width, channel = shape
+        heights.append(height)
+        widths.append(width)
+        channels.append(channel)
+    elif len(shape) == 2:  
+        _, channel = shape
+        heights.append(None)
+        widths.append(None)
+        channels.append(channel)
+
+def parse_conv(conv_weights, num : int):
+
+    kernel_size, kernel_size, input_channels, output_channels = conv_weights.shape
+    conv_weights[conv_weights == -1] = 0
+    conv_weight = np.reshape(conv_weights, (kernel_size**2, input_channels, output_channels))
+    print(conv_weight.shape)
+    buffer = ""
+    xnor = ""
+
+    for i in range(output_channels):
+        for j in range(input_channels):
+            for k in range(kernel_size**2):
+                weight = conv_weight[k, j, i]
+                if weight == 0:
+                    xnor += f"assign xnor[{i}][{j}][{k}] = ~window[{j}][{k}];\n" 
+                elif weight == 1:
+                    xnor += f"assign xnor[{i}][{j}][{k}] = window[{j}][{k}];\n" 
+                else:
+                    raise Exception(f"neuron value not 0 or 1: {weight}") 
+            
+    
+    output_hdl = templates.CONV_TEMPLATE \
+        .replace("%BUFFER%", buffer) \
+        .replace("%LAYER_NUM%", str(num)) \
+        .replace("%XNOR%", xnor)
+    with open(f"gen_hdl/conv_layer_{num}.sv", "w") as f:
+        f.write(output_hdl)
+
+betas = []
+moving_means = []
+moving_variances = []
+for layer in model.layers:
+    if isinstance(layer, tf.keras.layers.BatchNormalization):
+        beta, moving_mean, moving_variance = layer.get_weights()
+        betas.append(beta)
+        moving_means.append(moving_mean)
+        moving_variances.append(moving_variance)
+
+def parse_bn(beta, moving_mean, moving_variance, num: int):
+
+    # thresholds = np.zeros(len(beta))
+    compare = ""
+    for output_neuron in range(len(beta)):
+        # print(len(beta))
+        threshold = moving_mean[output_neuron] - beta[output_neuron] * np.sqrt(moving_variance[output_neuron])
+        compare += f"   assign o_data[{output_neuron}] = i_data[{output_neuron}] > {threshold} ? 1 : 0;\n"
+
+    output_hdl = templates.BN_TEMPLATE \
+        .replace("%DIM_DATA%", str(len(beta))) \
+        .replace("%LAYER_NUM%", str(num)) \
+        .replace("%COMPARE%", compare)
+        
+    with open(f"gen_hdl/bn_layer_{num}.v", "w") as f:
+        f.write(output_hdl)
+
 # Extract weights
 with lq.context.quantized_scope(True):
     weights = model.layers[1].get_weights()
