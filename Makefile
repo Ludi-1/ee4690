@@ -10,26 +10,29 @@ TOPLEVEL ?= popcount
 $(shell rm -rf sim_build)
 
 ifeq ($(TOPLEVEL),popcount)
-    VERILOG_SOURCES = $(shell pwd)/hdl/popcount.v
+    VERILOG_SOURCES = $(shell pwd)/rtl/popcount.v
     MODULE = tb.test_popcount
 else ifeq ($(TOPLEVEL),activation)
-    VERILOG_SOURCES = $(shell pwd)/hdl/activation.v
-    VERILOG_SOURCES += $(shell pwd)/hdl/popcount.v
+    VERILOG_SOURCES = $(shell pwd)/rtl/activation.v
+    VERILOG_SOURCES += $(shell pwd)/rtl/popcount.v
     MODULE = tb.test_activation
 else ifeq ($(TOPLEVEL),classifier)
-    VERILOG_SOURCES = $(shell pwd)/hdl/classifier.v
-    VERILOG_SOURCES += $(shell pwd)/hdl/no_activation.v
-    VERILOG_SOURCES += $(shell pwd)/hdl/popcount.v
+    VERILOG_SOURCES = $(shell pwd)/rtl/classifier.v
+    VERILOG_SOURCES += $(shell pwd)/rtl/no_activation.v
+    VERILOG_SOURCES += $(shell pwd)/rtl/popcount.v
     MODULE = tb.test_classifier
 else ifeq ($(TOPLEVEL),ibuf_conv)
-    VERILOG_SOURCES = $(shell pwd)/hdl/ibuf_conv.v
+    VERILOG_SOURCES = $(shell pwd)/rtl/ibuf_conv.v
     MODULE = tb.test_ibuf_conv
 else ifeq ($(TOPLEVEL),ibuf_fc)
     VERILOG_SOURCES = $(shell pwd)/ibuf_fc.v
     MODULE = tb.test_ibuf_fc
 else ifeq ($(TOPLEVEL),top)
-    VERILOG_SOURCES = $(shell pwd)/hdl/ibuf_conv.v
-    VERILOG_SOURCES += $(shell pwd)/hdl/ibuf_fc.v
+    VERILOG_SOURCES = $(shell pwd)/rtl/toplevel.v
+    VERILOG_SOURCES += $(shell pwd)/rtl/ibuf_fc.sv
+    VERILOG_SOURCES += $(shell pwd)/rtl/classifier.v
+    VERILOG_SOURCES += $(shell pwd)/rtl/no_activation.v
+    VERILOG_SOURCES += $(shell pwd)/rtl/popcount.v
     MODULE = tb.test_top
 else
     $(error Given TOPLEVEL '$(TOPLEVEL)' not supported)
