@@ -16,9 +16,9 @@ module layer_3_conv #(
     output o_we
 );
 
-localparam TEMP_SIZE = INPUT_CHANNELS * OUTPUT_CHANNELS * (KERNAL_DIM ** 2);
+localparam TEMP_SIZE = INPUT_CHANNELS * OUTPUT_CHANNELS * (KERNEL_DIM ** 2);
 
-reg window [INPUT_CHANNELS-1:0][KERNAL_DIM**2-1:0];
+reg window [INPUT_CHANNELS-1:0][KERNEL_DIM**2-1:0];
 reg temp [TEMP_SIZE-1:0];
 
 ibuf_conv #(
