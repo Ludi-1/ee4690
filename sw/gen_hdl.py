@@ -152,25 +152,15 @@ def parse_conv(conv_weights, num : int):
     print(conv_weight.shape)
     buffer = ""
     xnor = ""
-    for i in range(input_channels):
-        buffer += f"""ibuf_conv #(
-                        .img_width(INPUT_DIM),
-                        .kernel_dim(KERNEL_DIM),
-                    ) ibuf (
-                        .clk(clk),
-                        .i_we(i_we),
-                        .i_data(i_data[{i}]),
-                        .o_data(window[{i}]),
-                    );\n"""
 
     for i in range(output_channels):
         for j in range(input_channels):
             for k in range(kernel_size**2):
                 weight = conv_weight[k, j, i]
                 if weight == 0:
-                    xnor += f"assign temp[{i*output_channels+j*input_channels+k}] = ~window[{j}][{k}];\n" 
+                    xnor += f"assign xnor[{i}][{j}][{k}] = ~window[{j}][{k}];\n" 
                 elif weight == 1:
-                    xnor += f"assign temp[{i*output_channels+j*input_channels+k}] = window[{j}][{k}];\n" 
+                    xnor += f"assign xnor[{i}][{j}][{k}] = window[{j}][{k}];\n" 
                 else:
                     raise Exception(f"neuron value not 0 or 1: {weight}") 
             

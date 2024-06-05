@@ -143,28 +143,25 @@ CONV_TEMPLATE = """module layer_%LAYER_NUM%_conv #(
     input reset,
 
     input i_we,
-    input [DATATYPE_SIZE-1:0] i_data [INPUT_CHANNELS-1:0],
+    input i_data [INPUT_CHANNELS-1:0],
 
-    output [DATATYPE_SIZE-1:0] o_data [OUTPUT_CHANNELS-1:0],
-    output [DATATYPE_SIZE-1:0] o_data [OUTPUT_CHANNELS-1:0],
+    output o_data [OUTPUT_CHANNELS-1:0],
     output o_we
 );
 
-localparam TEMP_SIZE = INPUT_CHANNELS * OUTPUT_CHANNELS * (KERNAL_DIM ** 2);
+reg window [INPUT_CHANNELS-1:0][KERNEL_DIM**2-1:0];
+reg xnor [OUTPUT_CHANNELS-1:0][INPUT_CHANNELS-1:0][KERNEL_DIM**2-1:0];
 
-reg window [INPUT_CHANNELS-1:0][KERNAL_DIM**2-1:0];
-reg temp [TEMP_SIZE-1:0];
-
-%BUFFER%
-# ibuf_conv #(
-#     .img_width(INPUT_DIM),
-#     .kernel_dim(KERNEL_DIM),
-# ) ibuf (
-#     .clk(clk),
-#     .i_we(i_we),
-#     .i_data(i_data[%INPUT_C%]),
-#     .o_data(window[%INPUT_C%]),
-# );
+ibuf_conv #(
+    .img_width(INPUT_DIM),
+    .kernel_dim(KERNEL_DIM),
+    .input_channels(INPUT_CHANNELS)
+) ibuf (
+    .clk(clk),
+    .i_we(i_we),
+    .i_data(i_data),
+    .o_data(window)
+);
 
 %XNOR%
 
@@ -172,7 +169,7 @@ always @(*) begin
     for (int i = 0; i < OUTPUT_CHANNELS; i++) begin
         for (int j = 0; j < INPUT_CHANNELS; j++) begin
             for (int k = 0; k < KERNEL_DIM ** 2; k++) begin
-            o[i] += temp[i * OUTPUT_CHANNELS + j * INPUT_CHANNELS + k];
+            o[i] += xnor[i][j][k];
             end
         end
     end
