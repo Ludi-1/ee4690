@@ -155,7 +155,7 @@ for layer in model.layers:
         beta, moving_mean, moving_variance = layer.get_weights()
         parse_bn(beta, moving_mean, moving_variance, n)
         signals += (
-            f'wire [$clog2(L{n-1}_INPUT_DIM)-1:0] L{n}_i_data [L{n-1}_OUTPUT_DIM-1:0];\n'
+            f'wire [$clog2(L{n-1}_INPUT_DIM):0] L{n}_i_data [L{n-1}_OUTPUT_DIM-1:0];\n'
         )
         modules += (
             f'layer_{n}_bn #(\n'
@@ -188,11 +188,11 @@ for layer in model.layers:
             n += 1
 
 signals += (
-    f'wire [$clog2(L{n-1}_INPUT_DIM)-1:0] L{n}_i_data [L{n-1}_OUTPUT_DIM-1:0];\n'
+    f'wire [$clog2(L{n-1}_INPUT_DIM):0] L{n}_i_data [L{n-1}_OUTPUT_DIM-1:0];\n'
     f'assign o_data = L{n}_i_data;\n'
 )
 ports += (
-    f'\toutput [$clog2(L{n-1}_INPUT_DIM)-1:0] o_data [9:0],\n'
+    f'\toutput [$clog2(L{n-1}_INPUT_DIM):0] o_data [9:0],\n'
 )
 
 output_hdl = templates.TOP_TEMPLATE \

@@ -8,13 +8,12 @@ FC_TEMPLATE = """module layer_%LAYER_NUM%_fc #(
     parameter OUTPUT_DIM = %OUTPUT_DIM%
 ) (
     input [INPUT_DIM-1:0] i_data,
-    output reg [$clog2(INPUT_DIM)-1:0] o_data [OUTPUT_DIM-1:0]
+    output reg [$clog2(INPUT_DIM):0] o_data [OUTPUT_DIM-1:0]
 );
 
 wire xnor_result [INPUT_DIM-1:0][OUTPUT_DIM-1:0];
 reg [$clog2(INPUT_DIM)-1:0] popcnt [OUTPUT_DIM-1:0];
 reg signed [$clog2(INPUT_DIM)-1:0] shift [OUTPUT_DIM-1:0];
-reg signed [$clog2(INPUT_DIM):0] act [OUTPUT_DIM-1:0];
 
 %XNOR_GEN%
 
@@ -145,7 +144,7 @@ BN_TEMPLATE = """module layer_%LAYER_NUM%_bn #(
     parameter INPUT_DIM = 1,
     parameter OUTPUT_DIM = 1
 )(
-    input signed [$clog2(INPUT_DIM)-1:0] i_data [OUTPUT_DIM-1:0],
+    input signed [$clog2(INPUT_DIM):0] i_data [OUTPUT_DIM-1:0],
     output [OUTPUT_DIM-1:0] o_data
 );
 
