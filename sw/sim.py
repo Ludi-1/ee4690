@@ -35,7 +35,7 @@ kwargs = dict(input_quantizer="ste_sign",
               kernel_constraint="weight_clip",
               use_bias=False)
 
-model = MyModel()
+model = MyModel(prune=0.01)
 
 input_shape = (28, 28, 1)  # Input img shape
 filters_a = 32  # Number of output channels
@@ -44,30 +44,39 @@ kernel_a = (5, 5)  # Kernel dimension
 filters_b = 64  # Number of output channels
 kernel_b = (3, 3)  # Kernel dimension
 
-model.add(lq.layers.QuantConv2D(filters_a, kernel_a, **kwargs, input_shape=input_shape))
-model.add(tf.keras.layers.MaxPooling2D((2, 2)))
+model.add(tf.keras.layers.Flatten(input_shape=input_shape))
+
+model.add(lq.layers.QuantDense(128, **kwargs))
 model.add(tf.keras.layers.BatchNormalization(scale=False))
-model.add(lq.layers.QuantConv2D(filters_b, kernel_b, **kwargs))
-model.add(tf.keras.layers.MaxPooling2D((2, 2)))
+#
+model.add(lq.layers.QuantDense(128, **kwargs))
 model.add(tf.keras.layers.BatchNormalization(scale=False))
-model.add(tf.keras.layers.Flatten())
-model.add(lq.layers.QuantDense(32, **kwargs))
+
+model.add(lq.layers.QuantDense(64, **kwargs))
 model.add(tf.keras.layers.BatchNormalization(scale=False))
+
+
 model.add(lq.layers.QuantDense(10, **kwargs))
 model.add(tf.keras.layers.BatchNormalization(scale=False))
+model.add(tf.keras.layers.Activation("softmax"))
 
 # Train NNy
 model.compile(optimizer='adam',
               loss='sparse_categorical_crossentropy',
               metrics=['accuracy'])
 
-model.fit(train_images, train_labels, batch_size=64, epochs=2)
+model.fit(train_images, train_labels, batch_size=64, epochs=6)
 test_loss, test_acc = model.evaluate(test_images, test_labels)
 
 for struct in model.structure:
-    print(struct["name"])
+    # print(struct["name"])
+    pass
 valid, _ = model.simulate(test_images[0:1])
 
+accuracy = model.test_accuracy(test_images, test_labels)
+model.get_prune_info()
+
+print("The accuracy is:" + str(accuracy))
 if valid:
     print("The simulation test has passed")
 else:

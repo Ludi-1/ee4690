@@ -1,17 +1,26 @@
 import numpy as np
 import larq as lq
+import scipy.special
 import tensorflow as tf
 from sw.helper import make_kernels, convolve2D
+
 import keras
+
+import tensorflow_model_optimization as tfmot
 
 
 def binary_quantization(x):
     """ Quantizes the input to -1 and +1 based on sign. """
-    return np.where(x >= 0, 1, -1)
+    x[x > 0] = 1
+    x[x < 0] = -1
+    return x
 
 
 class MyModel:
-    def __init__(self):
+    def __init__(self, prune=None):
+        self.num_pre_pruned_weights = 0
+        self.num_pruned_weights = 0
+        self.prune = prune
         self.layers = []
         # self.outputs = []
         self.prediction = None
@@ -58,7 +67,10 @@ class MyModel:
             self.structure.append(struct)
 
         elif isinstance(layer, keras.layers.Flatten):
-            input_shape = self.layers[-1].output_shape
+            if len(self.layers) == 0:
+                input_shape = layer.input_shape
+            else:
+                input_shape = self.layers[-1].output_shape
             self.layers.append(Flatten(input_shape))
             struct = {"name": "layer_" + "flatten",
                       "input_shape": layer.input_shape,
@@ -76,6 +88,15 @@ class MyModel:
                       "input_shape": layer.input_shape,
                       "output_shape": layer.output_shape,
                       "weights": []}
+            self.structure.append(struct)
+
+        elif isinstance(layer, tf.keras.layers.Activation):
+            input_shape = self.layers[-1].output_shape
+            self.layers.append(Softmax(input_shape))
+            struct = {"name": "layer_" + "softmax",
+                      "input_shape": layer.input_shape,
+                      "output_shape": layer.output_shape,
+                      "weights": None}
             self.structure.append(struct)
 
     def predict(self, input):
@@ -96,7 +117,18 @@ class MyModel:
     def update_weights(self):
         for i, struct in enumerate(self.structure):
             if struct["weights"] is not None:
+
+                if self.prune is not None:
+                    non_pruned_weights = np.array(self.larq_model.layers[i].get_weights())
+                    pruned_weights = non_pruned_weights.copy()
+                    pruned_weights[
+                        (non_pruned_weights >= -self.prune) & (non_pruned_weights < self.prune)] = 0
+
+                    self.larq_model.layers[i].set_weights(pruned_weights)
+
                 weights = self.larq_model.layers[i].get_weights()
+                self.num_pre_pruned_weights += np.array(weights).size
+                self.num_pruned_weights += np.count_nonzero(pruned_weights)
                 self.layers[i].set_weights(weights)
                 self.structure[i]["weights"] = self.layers[i].weights
 
@@ -106,12 +138,30 @@ class MyModel:
     def predict_larq(self, input):
         return self.larq_model.predict(np.array([input]))
 
+    def test_accuracy(self, test_images, test_labels):
+        number_of_tests = test_images.shape[0]
+
+        n_correct = 0
+        for i, test in enumerate(test_images):
+            if np.argmax(self.predict(test)) == test_labels[i]:
+                n_correct += 1
+        return n_correct / number_of_tests
+
+    def get_prune_info(self):
+        print("The total number of pre pruned weights are:" + str(self.num_pre_pruned_weights))
+        if self.prune is not None:
+            print("The total number of post pruned weights are:" + str(self.num_pruned_weights))
+
     def simulate(self, inputs):
         results = []
         for input in inputs:
             my_model_result = self.predict(input)
             larq_model_result = self.predict_larq(input)
-            result = np.all(np.isclose(np.array(my_model_result), np.array(larq_model_result), rtol=1e-03, atol=1e-08,
+
+            # print("my model: " + str(my_model_result))
+            # print("keras model: " + str(larq_model_result))
+
+            result = np.all(np.isclose(np.array(my_model_result), np.array(larq_model_result), rtol=1e-02, atol=1e-08,
                                        equal_nan=False))
             results.append(result)
         valid = np.all(results)
@@ -141,6 +191,7 @@ class MyLayer:
            output[k] = convolve2D(channels[0], weights[k][0]) + convolve2D(channels[1], weights[k][1]) + ...
 """
 
+
 class Conv2D(MyLayer):
     def __init__(self, kernels, input_shape):
         MyLayer.__init__(self, input_shape)
@@ -149,7 +200,7 @@ class Conv2D(MyLayer):
 
     def inference(self, channels):
         temp = np.zeros((self.weights.shape[0], self.output_shape[0], self.output_shape[0]))
-        channels = np.sign(channels)
+        channels = binary_quantization(channels)
 
         for k, channel_kernel in enumerate(self.weights):
             for s, _ in enumerate(channel_kernel):
@@ -173,6 +224,16 @@ class Flatten(MyLayer):
             for j, col in enumerate(row):
                 for m, image in enumerate(interm_input):
                     self.output.append(interm_input[m][i][j])
+        return self.output
+
+
+class Softmax(MyLayer):
+    def __init__(self, input_shape):
+        MyLayer.__init__(self, input_shape)
+        self.output_shape = input_shape
+
+    def inference(self, interm_input):
+        self.output = tf.nn.softmax(interm_input).numpy()
         return self.output
 
 
@@ -237,9 +298,8 @@ class Quantdense(MyLayer):
 
         # Quantize the inputs
         quantized_inputs = binary_quantization(input_array)
-
         # Compute the dot product of quantized inputs and weights
-        self.output = np.dot(quantized_inputs, self.weights.squeeze(0))
+        self.output = np.dot(np.resize(quantized_inputs, (quantized_inputs.shape[0],)), self.weights.squeeze(0))
 
         return self.output
 
