@@ -26,6 +26,12 @@ kwargs = dict(input_quantizer="ste_sign",
 
 model = tf.keras.models.Sequential()
 model.add(tf.keras.layers.Flatten())
+model.add(lq.layers.QuantDense(128*5, use_bias=False, **kwargs))
+model.add(tf.keras.layers.BatchNormalization(scale=False))
+model.add(lq.layers.QuantDense(128*2, use_bias=False, **kwargs))
+model.add(tf.keras.layers.BatchNormalization(scale=False))
+model.add(lq.layers.QuantDense(64, use_bias=False, **kwargs))
+model.add(tf.keras.layers.BatchNormalization(scale=False))
 model.add(lq.layers.QuantDense(10, use_bias=False, **kwargs))
 model.add(tf.keras.layers.Activation("softmax"))
 
@@ -40,12 +46,7 @@ if not os.path.exists("gen_hdl"):
     os.mkdir("gen_hdl")
 
 ### PARSE FC FUNC
-def parse_fc(fc_weights, num: int, classifier: bool):
-    if classifier:
-        classifier = str(1)
-    else:
-        classifier = str(0)
-
+def parse_fc(fc_weights, num: int):
     fc_weights[fc_weights == -1] = 0
     fc_weights = fc_weights.T
     xnor = ""
@@ -54,18 +55,20 @@ def parse_fc(fc_weights, num: int, classifier: bool):
         for input_neuron in range(weight_dim[1]):
             weight = fc_weights[output_neuron][input_neuron]
             if weight == 0:
-                xnor += f"assign xnor_result[{input_neuron}][{output_neuron}] = ~input_neuron[{input_neuron}];\n"
+                xnor += f"assign xnor_result[{input_neuron}][{output_neuron}] = ~i_data[{input_neuron}];\n"
             elif weight == 1:
-                xnor += f"assign xnor_result[{input_neuron}][{output_neuron}] = input_neuron[{input_neuron}];\n"
+                xnor += f"assign xnor_result[{input_neuron}][{output_neuron}] = i_data[{input_neuron}];\n"
             else:
                 raise Exception(f"neuron value not 0 or 1: {input_neuron}")
 
     output_hdl = templates.FC_TEMPLATE \
         .replace("%XNOR_GEN%", xnor) \
         .replace("%LAYER_NUM%", str(num)) \
-        .replace("%CLASSIFIER%", str(classifier))
-    with open(f"gen_hdl/fc_layer_{num}.sv", "w") as f:
+        .replace("%INPUT_DIM%", str(weight_dim[1])) \
+        .replace("%OUTPUT_DIM%", str(weight_dim[0]))
+    with open(f"gen_hdl/L{num}_fc.v", "w") as f:
         f.write(output_hdl)
+    return (weight_dim[1], weight_dim[0])
 
 ### PARSE CONV
 heights = []
@@ -110,7 +113,7 @@ def parse_conv(conv_weights, num : int):
         .replace("%BUFFER%", buffer) \
         .replace("%LAYER_NUM%", str(num)) \
         .replace("%XNOR%", xnor)
-    with open(f"gen_hdl/conv_layer_{num}.sv", "w") as f:
+    with open(f"gen_hdl/L{num}_conv.v", "w") as f:
         f.write(output_hdl)
 
 betas = []
@@ -130,18 +133,73 @@ def parse_bn(beta, moving_mean, moving_variance, num: int):
     for output_neuron in range(len(beta)):
         # print(len(beta))
         threshold = moving_mean[output_neuron] - beta[output_neuron] * np.sqrt(moving_variance[output_neuron])
-        compare += f"   assign o_data[{output_neuron}] = i_data[{output_neuron}] > {threshold} ? 1 : 0;\n"
+        compare += f"   assign o_data[{output_neuron}] = i_data[{output_neuron}] > {round(threshold)} ? 1 : 0;\n"
 
     output_hdl = templates.BN_TEMPLATE \
         .replace("%DIM_DATA%", str(len(beta))) \
         .replace("%LAYER_NUM%", str(num)) \
         .replace("%COMPARE%", compare)
         
-    with open(f"gen_hdl/bn_layer_{num}.v", "w") as f:
+    with open(f"gen_hdl/L{num}_bn.v", "w") as f:
         f.write(output_hdl)
 
 # Extract weights
-with lq.context.quantized_scope(True):
-    weights = model.layers[1].get_weights()
+parameters = ""
+signals = ""
+modules = ""
+ports = ""
 
-parse_fc(weights[0], 0)
+n = 0
+for layer in model.layers:
+    if isinstance(layer, tf.keras.layers.BatchNormalization):
+        beta, moving_mean, moving_variance = layer.get_weights()
+        parse_bn(beta, moving_mean, moving_variance, n)
+        signals += (
+            f'wire [$clog2(L{n-1}_INPUT_DIM)-1:0] L{n}_i_data [L{n-1}_OUTPUT_DIM-1:0];\n'
+        )
+        modules += (
+            f'layer_{n}_bn #(\n'
+            f'\t.INPUT_DIM(L{n-1}_INPUT_DIM),\n'
+            f'\t.OUTPUT_DIM(L{n-1}_OUTPUT_DIM)\n'
+            f') L{n}_bn (\n'
+            f'\t.i_data(L{n}_i_data),\n'
+            f'\t.o_data(L{n+1}_i_data)\n);\n'
+        )
+        n += 1
+    elif isinstance(layer, lq.layers.QuantDense):
+        with lq.context.quantized_scope(True):
+            weights = layer.get_weights()
+            input_dim, output_dim = parse_fc(weights[0], n)
+            parameters += (
+                f'\tparameter L{n}_INPUT_DIM = {input_dim},\n'
+                f'\tparameter L{n}_OUTPUT_DIM = {output_dim},\n'
+                )
+            signals += (
+                f'wire [L{n}_INPUT_DIM-1:0] L{n}_i_data;\n'
+            )
+            modules += (
+                f'layer_{n}_fc #(\n'
+                f'\t.INPUT_DIM(L{n}_INPUT_DIM),\n'
+                f'\t.OUTPUT_DIM(L{n}_OUTPUT_DIM)\n'
+                f') L{n}_fc (\n'
+                f'\t.i_data(L{n}_i_data),\n'
+                f'\t.o_data(L{n+1}_i_data)\n);\n'
+            )
+            n += 1
+
+signals += (
+    f'wire [$clog2(L{n-1}_INPUT_DIM)-1:0] L{n}_i_data [L{n-1}_OUTPUT_DIM-1:0];\n'
+    f'assign o_data = L{n}_i_data;\n'
+)
+ports += (
+    f'\toutput [$clog2(L{n-1}_INPUT_DIM)-1:0] o_data [9:0],\n'
+)
+
+output_hdl = templates.TOP_TEMPLATE \
+        .replace("%PARAMETERS%", parameters.rstrip(",\n")) \
+        .replace("%PORTS%", ports) \
+        .replace("%SIGNALS%", signals) \
+        .replace("%MODULES%", modules)
+
+with open(f"./gen_hdl/top.v", "w") as f:
+    f.write(output_hdl)

@@ -5,10 +5,10 @@ module ibuf_fc #(
     input clk,
     input i_write_enable,
     input i_data [INPUT_CHANNELS-1:0],
-    output reg o_data [INPUT_CHANNELS-1:0][FIFO_LENGTH-1:0]
+    output reg [FIFO_LENGTH-1:0] o_data [INPUT_CHANNELS-1:0]
 );
 
-always_ff @(posedge clk) begin
+always @(posedge clk) begin
     if (i_write_enable) begin
         for (int i = 0; i < INPUT_CHANNELS; i++) begin
             o_data[i][0] <= i_data[i];
