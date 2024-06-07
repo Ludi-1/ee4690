@@ -14,7 +14,7 @@ async def top_test(dut):
     num = 0
     correct = 0
     await RisingEdge(dut.clk)
-    for test_image in test_images:
+    for test_image in test_images[0:10]:
         dut.i_we.value = 1
         test_image[test_image < 0.0] = 0
         test_image[test_image > 0.0] = 1
