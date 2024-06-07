@@ -19,7 +19,7 @@ else ifeq ($(TOPLEVEL),layer_0_fc)
     COMPILE_ARGS += -Player_0_fc.CLASSIFIER=1
     MODULE = tb.test_fc_layer
 else ifeq ($(TOPLEVEL),top)
-    VERILOG_SOURCES = $(shell pwd)/gen_hdl/*
+    VERILOG_SOURCES = $(shell pwd)/sw/gen_hdl/*
     VERILOG_SOURCES += $(shell pwd)/rtl/ibuf.v
     MODULE = tb.top_tb
 else

@@ -7,13 +7,14 @@ FC_TEMPLATE = """module layer_%LAYER_NUM%_fc #(
     parameter INPUT_DIM = %INPUT_DIM%,
     parameter OUTPUT_DIM = %OUTPUT_DIM%
 ) (
-    input [INPUT_DIM-1:0] i_data,
-    output reg [$clog2(INPUT_DIM):0] o_data [OUTPUT_DIM-1:0]
+    input i_data [INPUT_DIM-1:0],
+    output reg [DATATYPE_SIZE-1:0] o_data [OUTPUT_DIM-1:0]
 );
 
 wire xnor_result [INPUT_DIM-1:0][OUTPUT_DIM-1:0];
 reg [$clog2(INPUT_DIM)-1:0] popcnt [OUTPUT_DIM-1:0];
-reg signed [$clog2(INPUT_DIM)-1:0] shift [OUTPUT_DIM-1:0];
+reg [$clog2(INPUT_DIM)-1:0] shift [OUTPUT_DIM-1:0];
+reg [$clog2(INPUT_DIM):0] act [OUTPUT_DIM-1:0];
 
 %XNOR_GEN%
 
@@ -25,8 +26,31 @@ always_comb begin
         for (int j = 0; j < INPUT_DIM; j++) begin
             popcnt[i] += { {CONCAT_BITS{1'b0}}, xnor_result[j][i]};
         end
-        shift[i] = popcnt[i] << 1;
-        o_data[i] = shift[i] - INPUT_DIM;
+        shift[i] = popcnt[i] <<< 1;
+        act[i] = shift[i] - INPUT_DIM;
+    end
+end
+
+generate 
+    for (genvar i = 0; i < OUTPUT_DIM; i++) begin
+        if (CLASSIFIER) begin
+            assign o_data[i] = act[i]; // (no soft)max
+        end else begin
+            assign o_data[i] = ~act[i][$clog2(INPUT_DIM)-1]; // sign function
+        end
+    end
+endgenerate
+
+initial begin
+    $dumpfile("dump.fst");
+    for (int i = 0; i < OUTPUT_DIM; i++) begin
+        $dumpvars(0, o_data[i]);
+    end
+    for (int i = 0; i < OUTPUT_DIM; i++) begin
+        $dumpvars(0, shift[i]);
+    end
+    for (int i = 0; i < OUTPUT_DIM; i++) begin
+        $dumpvars(0, popcnt[i]);
     end
 end
 
@@ -75,7 +99,7 @@ generate
         if (CLASSIFIER) begin
             assign o_data[i] = act[i]; // (no soft)max
         end else begin
-            assign o_data[i] = ~act[i][$clog2(INPUT_DIM)-1]; // sign function
+            assign o_data[i] = ~act[i][$clog2(INPUT_DIM)]; // sign function
         end
     end
 endgenerate
@@ -177,5 +201,18 @@ ibuf #(
 );
 
 %MODULES%
+
+initial begin
+    $dumpfile("dump.fst");
+    for (int i = 0; i < L0_INPUT_DIM; i++) begin
+        $dumpvars(0, L0_i_data[i]);
+    end
+    for (int i = 0; i < L1_INPUT_DIM; i++) begin
+        $dumpvars(0, L1_i_data[i]);
+    end
+    for (int i = 0; i < 10; i++) begin
+        $dumpvars(0, o_data[i]);
+    end
+end
 
 endmodule"""

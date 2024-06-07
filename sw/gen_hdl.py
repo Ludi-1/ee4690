@@ -9,7 +9,7 @@ import larq as lq
 import tensorflow as tf
 import numpy as np
 import os
-
+import shutil
 from sw import templates
 
 # Image dataset
@@ -26,10 +26,10 @@ kwargs = dict(input_quantizer="ste_sign",
 
 model = tf.keras.models.Sequential()
 model.add(tf.keras.layers.Flatten())
-model.add(lq.layers.QuantDense(128*5, use_bias=False, **kwargs))
-model.add(tf.keras.layers.BatchNormalization(scale=False))
-model.add(lq.layers.QuantDense(128*2, use_bias=False, **kwargs))
-model.add(tf.keras.layers.BatchNormalization(scale=False))
+# model.add(lq.layers.QuantDense(128*5, use_bias=False, **kwargs))
+# model.add(tf.keras.layers.BatchNormalization(scale=False))
+# model.add(lq.layers.QuantDense(128*2, use_bias=False, **kwargs))
+# model.add(tf.keras.layers.BatchNormalization(scale=False))
 model.add(lq.layers.QuantDense(64, use_bias=False, **kwargs))
 model.add(tf.keras.layers.BatchNormalization(scale=False))
 model.add(lq.layers.QuantDense(10, use_bias=False, **kwargs))
@@ -44,16 +44,19 @@ lq.models.summary(model)
 
 if not os.path.exists("gen_hdl"):
     os.mkdir("gen_hdl")
+else:
+    shutil.rmtree('/path/to/your/dir/')
+    os.mkdir("gen_hdl")
 
 ### PARSE FC FUNC
 def parse_fc(fc_weights, num: int):
     fc_weights[fc_weights == -1] = 0
-    fc_weights = fc_weights.T
     xnor = ""
     weight_dim = fc_weights.shape
-    for output_neuron in range(weight_dim[0]):
-        for input_neuron in range(weight_dim[1]):
-            weight = fc_weights[output_neuron][input_neuron]
+    print(weight_dim, n)
+    for input_neuron in range(weight_dim[0]):
+        for output_neuron in range(weight_dim[1]):
+            weight = fc_weights[input_neuron][output_neuron]
             if weight == 0:
                 xnor += f"assign xnor_result[{input_neuron}][{output_neuron}] = ~i_data[{input_neuron}];\n"
             elif weight == 1:
@@ -64,11 +67,11 @@ def parse_fc(fc_weights, num: int):
     output_hdl = templates.FC_TEMPLATE \
         .replace("%XNOR_GEN%", xnor) \
         .replace("%LAYER_NUM%", str(num)) \
-        .replace("%INPUT_DIM%", str(weight_dim[1])) \
-        .replace("%OUTPUT_DIM%", str(weight_dim[0]))
+        .replace("%INPUT_DIM%", str(weight_dim[0])) \
+        .replace("%OUTPUT_DIM%", str(weight_dim[1]))
     with open(f"gen_hdl/L{num}_fc.v", "w") as f:
         f.write(output_hdl)
-    return (weight_dim[1], weight_dim[0])
+    return (weight_dim[0], weight_dim[1])
 
 ### PARSE CONV
 heights = []
@@ -116,24 +119,25 @@ def parse_conv(conv_weights, num : int):
     with open(f"gen_hdl/L{num}_conv.v", "w") as f:
         f.write(output_hdl)
 
-betas = []
-moving_means = []
-moving_variances = []
-for layer in model.layers:
-    if isinstance(layer, tf.keras.layers.BatchNormalization):
-        beta, moving_mean, moving_variance = layer.get_weights()
-        betas.append(beta)
-        moving_means.append(moving_mean)
-        moving_variances.append(moving_variance)
+# betas = []
+# moving_means = []
+# moving_variances = []
+# for layer in model.layers:
+#     if isinstance(layer, tf.keras.layers.BatchNormalization):
+#         beta, moving_mean, moving_variance = layer.get_weights()
+#         betas.append(beta)
+#         moving_means.append(moving_mean)
+#         moving_variances.append(moving_variance)
 
 def parse_bn(beta, moving_mean, moving_variance, num: int):
 
     # thresholds = np.zeros(len(beta))
+    print(beta.shape)
     compare = ""
     for output_neuron in range(len(beta)):
         # print(len(beta))
         threshold = moving_mean[output_neuron] - beta[output_neuron] * np.sqrt(moving_variance[output_neuron])
-        compare += f"   assign o_data[{output_neuron}] = i_data[{output_neuron}] > {round(threshold)} ? 1 : 0;\n"
+        compare += f"\tassign o_data[{output_neuron}] = i_data[{output_neuron}] > {round(threshold)} ? 1 : 0;\n"
 
     output_hdl = templates.BN_TEMPLATE \
         .replace("%DIM_DATA%", str(len(beta))) \
@@ -148,7 +152,7 @@ parameters = ""
 signals = ""
 modules = ""
 ports = ""
-
+print(len(model.layers)-2)
 n = 0
 for layer in model.layers:
     if isinstance(layer, tf.keras.layers.BatchNormalization):
@@ -168,19 +172,26 @@ for layer in model.layers:
         n += 1
     elif isinstance(layer, lq.layers.QuantDense):
         with lq.context.quantized_scope(True):
+            if n == len(model.layers)-3:
+                classifier = 1
+            else:
+                classifier = 0
             weights = layer.get_weights()
             input_dim, output_dim = parse_fc(weights[0], n)
             parameters += (
                 f'\tparameter L{n}_INPUT_DIM = {input_dim},\n'
                 f'\tparameter L{n}_OUTPUT_DIM = {output_dim},\n'
+                f'\tparameter L{n}_CLASSIFIER = {str(classifier)},\n'
+                f'\tparameter L{n}_DATATYPE_SIZE = 1,\n'
                 )
             signals += (
-                f'wire [L{n}_INPUT_DIM-1:0] L{n}_i_data;\n'
+                f'wire [L{n}_DATATYPE_SIZE-1:0] L{n}_i_data [L{n}_INPUT_DIM-1:0];\n'
             )
             modules += (
                 f'layer_{n}_fc #(\n'
                 f'\t.INPUT_DIM(L{n}_INPUT_DIM),\n'
-                f'\t.OUTPUT_DIM(L{n}_OUTPUT_DIM)\n'
+                f'\t.OUTPUT_DIM(L{n}_OUTPUT_DIM),\n'
+                f'\t.CLASSIFIER(L{n}_CLASSIFIER)\n'
                 f') L{n}_fc (\n'
                 f'\t.i_data(L{n}_i_data),\n'
                 f'\t.o_data(L{n+1}_i_data)\n);\n'
@@ -192,7 +203,7 @@ signals += (
     f'assign o_data = L{n}_i_data;\n'
 )
 ports += (
-    f'\toutput [$clog2(L{n-1}_INPUT_DIM):0] o_data [9:0],\n'
+    f'\toutput signed [$clog2(L{n-1}_INPUT_DIM):0] o_data [9:0],\n'
 )
 
 output_hdl = templates.TOP_TEMPLATE \
