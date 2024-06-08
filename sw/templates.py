@@ -39,6 +39,13 @@ generate
             assign o_data[i] = ~act[i][$clog2(INPUT_DIM)-1]; // sign function
         end
     end
+
+always @(posedge clk) begin
+    for (int i = 0; i < OUTPUT_DIM; i++) begin
+        o_data[i] = shift[i] - INPUT_DIM;
+    end
+end
+
 endgenerate
 
 initial begin

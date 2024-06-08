@@ -20,7 +20,6 @@ else ifeq ($(TOPLEVEL),layer_0_fc)
     MODULE = tb.test_fc_layer
 else ifeq ($(TOPLEVEL),top)
     VERILOG_SOURCES = $(shell pwd)/sw/gen_hdl/*
-    VERILOG_SOURCES += $(shell pwd)/rtl/ibuf.v
     MODULE = tb.top_tb
 else
     $(error Given TOPLEVEL '$(TOPLEVEL)' not supported)
