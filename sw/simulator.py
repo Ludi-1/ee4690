@@ -1,9 +1,8 @@
 import numpy as np
 import larq as lq
-import scipy.special
 import tensorflow as tf
-from sw.helper import make_kernels, convolve2D
-
+from helper import make_kernels, convolve2D
+import pandas as pd
 import keras
 
 import tensorflow_model_optimization as tfmot
@@ -20,6 +19,7 @@ class MyModel:
     def __init__(self, prune=None):
         self.num_pre_pruned_weights = 0
         self.num_pruned_weights = 0
+        self.weight_info = {"name": [], "1-bit": [], "32-bit": []}
         self.prune = prune
         self.layers = []
         # self.outputs = []
@@ -44,7 +44,8 @@ class MyModel:
             struct = {"name": "layer_" + "conv_" + str(np.array(self.layers[-1].weights).shape),
                       "input_shape": layer.input_shape,
                       "output_shape": layer.output_shape,
-                      "weights": []}
+                      "weights": [],
+                      "type": "1-bit"}
             self.structure.append(struct)
 
         elif isinstance(layer, keras.layers.MaxPooling2D):
@@ -53,7 +54,8 @@ class MyModel:
             struct = {"name": "layer_" + "maxpool_" + str(layer.pool_size[0]) + "_" + str(layer.pool_size[1]),
                       "input_shape": layer.input_shape,
                       "output_shape": layer.output_shape,
-                      "weights": None}
+                      "weights": None,
+                      "type": None}
             self.structure.append(struct)
 
         elif isinstance(layer, keras.layers.BatchNormalization):
@@ -63,7 +65,8 @@ class MyModel:
             struct = {"name": "layer_" + "batchnorm",
                       "input_shape": layer.input_shape,
                       "output_shape": layer.output_shape,
-                      "weights": []}
+                      "weights": [],
+                      "type": "32-bit"}
             self.structure.append(struct)
 
         elif isinstance(layer, keras.layers.Flatten):
@@ -75,7 +78,8 @@ class MyModel:
             struct = {"name": "layer_" + "flatten",
                       "input_shape": layer.input_shape,
                       "output_shape": layer.output_shape,
-                      "weights": None}
+                      "weights": None,
+                      "type": None}
             self.structure.append(struct)
 
         elif isinstance(layer, lq.layers.QuantDense):
@@ -87,7 +91,8 @@ class MyModel:
             struct = {"name": "layer_" + "fc",
                       "input_shape": layer.input_shape,
                       "output_shape": layer.output_shape,
-                      "weights": []}
+                      "weights": [],
+                      "type": "1-bit"}
             self.structure.append(struct)
 
         elif isinstance(layer, tf.keras.layers.Activation):
@@ -96,7 +101,8 @@ class MyModel:
             struct = {"name": "layer_" + "softmax",
                       "input_shape": layer.input_shape,
                       "output_shape": layer.output_shape,
-                      "weights": None}
+                      "weights": None,
+                      "type": None}
             self.structure.append(struct)
 
     def predict(self, input):
@@ -117,27 +123,51 @@ class MyModel:
     def update_weights(self):
         for i, struct in enumerate(self.structure):
             if struct["weights"] is not None:
-
-                if self.prune is not None:
-                    non_pruned_weights = np.array(self.larq_model.layers[i].get_weights())
+                non_pruned_weights = np.array(self.larq_model.layers[i].get_weights())
+                num_pruned_weights = non_pruned_weights.size
+                # If pruning is enables; Set the insignificant weights to zero in keras and larq model.
+                if self.prune is not None and struct["name"] == "layer_fc":
+                    # Prune insignificant weights
                     pruned_weights = non_pruned_weights.copy()
                     pruned_weights[
                         (non_pruned_weights >= -self.prune) & (non_pruned_weights < self.prune)] = 0
 
+                    # Update the weights in the larq model; This does not work currently
                     self.larq_model.layers[i].set_weights(pruned_weights)
-
+                   
+                    # Count the number of non zero weigths
+                    num_pruned_weights = np.count_nonzero(pruned_weights)
+                
+                # Retreive the pruned weigths from the keras model and apply it it the costom model
                 weights = self.larq_model.layers[i].get_weights()
-                self.num_pre_pruned_weights += np.array(weights).size
-                self.num_pruned_weights += np.count_nonzero(pruned_weights)
                 self.layers[i].set_weights(weights)
                 self.structure[i]["weights"] = self.layers[i].weights
+                
+                # Get pruning info
+                num_pruned_weights_1_bit = 0
+                num_pruned_weights_32_bit = 0
+                num_weights_1_bit = 0
+                num_weights_32_bit = 0
+                if self.structure[i]["type"] == "1-bit":
+                    num_pruned_weights_1_bit =  num_pruned_weights
+                    num_weights_1_bit =  np.array(self.structure[i]["weights"]).size
+                elif self.structure[i]["type"] == "32-bit":
+                    num_pruned_weights_32_bit =  num_pruned_weights
+                    num_weights_32_bit =  np.array(self.structure[i]["weights"]).size
+                
+                self.weight_info["name"].append(self.structure[i]["name"])
+                self.weight_info["1-bit"].append((num_weights_1_bit, num_pruned_weights_1_bit))
+                self.weight_info["32-bit"].append((num_weights_32_bit, num_pruned_weights_32_bit))
 
+    # Get the accuracy info of the keras model
     def evaluate(self, test_images, test_labels):
         return self.larq_model.evaluate(test_images, test_labels)
 
+    # Perform single inference of keras model
     def predict_larq(self, input):
         return self.larq_model.predict(np.array([input]))
 
+    # Test the accuracy of the costum model
     def test_accuracy(self, test_images, test_labels):
         number_of_tests = test_images.shape[0]
 
@@ -147,10 +177,22 @@ class MyModel:
                 n_correct += 1
         return n_correct / number_of_tests
 
-    def get_prune_info(self):
-        print("The total number of pre pruned weights are:" + str(self.num_pre_pruned_weights))
-        if self.prune is not None:
-            print("The total number of post pruned weights are:" + str(self.num_pruned_weights))
+    def get_weight_info(self):
+        weight_info = pd.DataFrame(self.weight_info)
+
+        total = {"1-bit": (0,0), "32-bit": (0,0)}
+        for bit_type in ["1-bit", '32-bit']: 
+            for (non_pruned, pruned) in weight_info[bit_type]:
+                total[bit_type] = (total[bit_type][0] + non_pruned, total[bit_type][1] + pruned)
+        total = pd.DataFrame(total)
+
+        reduction = (1-(total["1-bit"][1] /  total["1-bit"][0])), (1-(total["32-bit"][1] /  (total["32-bit"][0])))
+        # if self.prune is not None:
+        #     print("The total number of pre pruned weights are:" + str(self.num_pre_pruned_weights))
+        #     print("The total number of post pruned weights are:" + str(self.num_pruned_weights))
+        # else:
+        #     pass
+        return weight_info, total, reduction
 
     def simulate(self, inputs):
         results = []

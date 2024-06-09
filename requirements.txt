@@ -3,6 +3,7 @@ tensorflow-probability==0.24.0
 tensorflow==2.15
 matplotlib~=3.9.0
 scipy
-kera
 numpy~=1.26.4
 keras~=2.15.0
+tensorflow_model_optimization
+pandas
