@@ -1,7 +1,7 @@
 module top #(
-    parameter MATRIX_DIM = 8,
+    parameter MATRIX_DIM = 64,
     parameter INPUT_WIDTH = 8,
-    parameter OUTPUT_WIDTH = 20,
+    parameter OUTPUT_WIDTH = 22,
     parameter ADDR_WIDTH = $clog2(MATRIX_DIM**2)
 )
 (

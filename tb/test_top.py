@@ -14,7 +14,7 @@ async def fsm_test(dut):
     # write regfile A (and B TODO)
     dut.we_a.value = 1
     dut.we_b.value = 1
-    for addr in range(64):
+    for addr in range(64**2):
         dut.addr_a_in.value = addr
         dut.addr_b_in.value = addr
         wr_data_a = random.getrandbits(8)
@@ -29,12 +29,12 @@ async def fsm_test(dut):
     dut.start.value = 1
     await RisingEdge(dut.CLK)
     dut.start.value = 0
-    for i in range(8*64):
+    for i in range(64**3):
         await RisingEdge(dut.CLK)
 
     await RisingEdge(dut.CLK)
     dut.start.value = 0
-    for addr in range(64):
+    for addr in range(64**2):
         dut.addr_c_in.value = addr
         await RisingEdge(dut.CLK)
         print(f"addr {addr} - {hex(dut.data_c.value)}")

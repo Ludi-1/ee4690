@@ -28,8 +28,8 @@ reg [COUNT_WIDTH-1:0] count;
 reg [$clog2(MATRIX_DIM)-1:0] count_addr_a1, count_addr_b2;
 reg [$clog2(MATRIX_DIM*(MATRIX_DIM-1))-1:0] count_addr_a2, count_addr_b1;
 
-assign addr_a = {3'b0, count_addr_a1} + count_addr_a2;
-assign addr_b = {3'b0, count_addr_b2} + count_addr_b1;
+assign addr_a = {6'b0, count_addr_a1} + count_addr_a2;
+assign addr_b = {6'b0, count_addr_b2} + count_addr_b1;
 assign we_c = count_c_en;
 
 // state
@@ -108,7 +108,7 @@ counter #(
 
 counter #(
     .COUNT_MAX(MATRIX_DIM),
-    .COUNT_INC(8)
+    .COUNT_INC(64)
 ) counter_a2 (
     .CLK(CLK),
     .rst(rst),
@@ -119,7 +119,7 @@ counter #(
 // counter B
 counter #(
     .COUNT_MAX(MATRIX_DIM),
-    .COUNT_INC(8)
+    .COUNT_INC(64)
 ) counter_b1 (
     .CLK(CLK),
     .rst(rst),

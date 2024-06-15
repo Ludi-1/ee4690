@@ -19,7 +19,7 @@ wire [IN_WIDTH*2-1:0] product;
 reg [OUT_WIDTH-1:0] sum;
 
 assign product = in_1 * in_2;
-assign out = set_sum ? {4'b0, product} : sum + {4'b0, product};
+assign out = set_sum ? {6'b0, product} : sum + {6'b0, product};
 
 // always @(*) begin
 //     if (set_sum) begin
